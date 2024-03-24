@@ -3,10 +3,6 @@ use thiserror::Error;
 
 #[derive(Error, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum WarperError {
-    #[error("Warper has not been initiated yet. Call initiate_weights() first.")]
-    NotInitiated,
-    #[error("Warper has already been initiated. Call warp() to apply the transformation.")]
-    AlreadyInitiated,
     #[error("Invalid raster dimensions.")]
     InvalidRasterDimensions,
 }
@@ -77,8 +73,8 @@ impl RasterBounds {
             return Err(WarperError::InvalidRasterDimensions);
         }
 
-        let nx = nx as u32;
-        let ny = ny as u32;
+        let nx = nx as u32 + 1;
+        let ny = ny as u32 + 1;
 
         Ok(Self {
             min: XYTuple { x: min_x, y: min_y },
@@ -96,31 +92,38 @@ struct ResamplingKernelInternals {
     y_weights: [f64; 4],
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct WarperBuilder {}
+
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub struct Warper {
-    internals: Option<ResamplingKernelInternals>,
+    internals: ResamplingKernelInternals,
 }
 
+impl WarperBuilder {
+    pub fn new(
+        source_bounds: &RasterBounds,
+        target_bounds: &RasterBounds,
+    ) -> Result<Self, WarperError> {
+        todo!()
+    }
+
+    pub fn initiate_weights(&self, kernel: impl ResamplingFilter) -> Result<Warper, WarperError> {
+        todo!()
+    }
+}
 impl Warper {
-    pub fn new(source_bounds: &RasterBounds, target_bounds: &RasterBounds) -> Result<Self, WarperError> {
-        todo!()
-    }
-
-    pub fn initiate_weights(&mut self, kernel: impl ResamplingFilter) -> Result<(), WarperError> {
-        todo!()
-    }
-
     pub fn warp(&self, lonlat_raster: &Array2<f64>) -> Result<Array2<f64>, WarperError> {
         todo!()
     }
 
     #[cfg(feature = "io")]
-    pub fn save_initiated(&self, path: &str) -> Result<(), WarperIOError> {
+    pub fn save_to_file(&self, path: &str) -> Result<(), WarperIOError> {
         todo!()
     }
 
     #[cfg(feature = "io")]
-    pub fn load_initiated(path: &str) -> Result<Self, WarperIOError> {
+    pub fn load_from_file(path: &str) -> Result<Self, WarperIOError> {
         todo!()
     }
 }
