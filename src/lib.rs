@@ -1,13 +1,20 @@
 use ndarray::Array2;
+use thiserror::Error;
 
+#[derive(Error, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum WarperError {
+    #[error("Warper has not been initiated yet. Call initiate_weights() first.")]
     NotInitiated,
+    #[error("Warper has already been initiated. Call warp() to apply the transformation.")]
     AlreadyInitiated,
 }
 
 #[cfg(feature = "io")]
+#[derive(Error, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum WarperIOError {
+    #[error("File not found.")]
     FileNotFound,
+    #[error("Invalid file.")]
     InvalidFile,
 }
 
