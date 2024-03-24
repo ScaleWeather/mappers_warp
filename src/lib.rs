@@ -7,6 +7,8 @@ pub enum WarperError {
     NotInitiated,
     #[error("Warper has already been initiated. Call warp() to apply the transformation.")]
     AlreadyInitiated,
+    #[error("Invalid raster dimensions.")]
+    InvalidRasterDimensions,
 }
 
 #[cfg(feature = "io")]
@@ -40,6 +42,53 @@ impl ResamplingFilter for MitchellNetravali {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+pub struct XYTuple<T> {
+    pub x: T,
+    pub y: T,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+pub struct RasterBounds {
+    pub min: XYTuple<f64>,
+    pub max: XYTuple<f64>,
+    pub spacing: XYTuple<f64>,
+    pub shape: XYTuple<u32>,
+}
+
+impl RasterBounds {
+    pub fn new(
+        x_bounds: (f64, f64),
+        y_bounds: (f64, f64),
+        dx: f64,
+        dy: f64,
+    ) -> Result<Self, WarperError> {
+        let (min_x, max_x) = x_bounds;
+        let (min_y, max_y) = y_bounds;
+
+        if min_x >= max_x || min_y >= max_y {
+            return Err(WarperError::InvalidRasterDimensions);
+        }
+
+        let nx = (max_x - min_x) / dx;
+        let ny = (max_y - min_y) / dy;
+
+        if nx.fract() != 0.0 || ny.fract() != 0.0 {
+            return Err(WarperError::InvalidRasterDimensions);
+        }
+
+        let nx = nx as u32;
+        let ny = ny as u32;
+
+        Ok(Self {
+            min: XYTuple { x: min_x, y: min_y },
+            max: XYTuple { x: max_x, y: max_y },
+            spacing: XYTuple { x: dx, y: dy },
+            shape: XYTuple { x: nx, y: ny },
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 struct ResamplingKernelInternals {
     anchor_pixel_idx: [u32; 2],
@@ -53,7 +102,7 @@ pub struct Warper {
 }
 
 impl Warper {
-    pub fn new() -> Result<Self, WarperError> {
+    pub fn new(source_bounds: &RasterBounds, target_bounds: &RasterBounds) -> Result<Self, WarperError> {
         todo!()
     }
 
