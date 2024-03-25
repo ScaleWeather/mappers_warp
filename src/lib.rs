@@ -220,7 +220,7 @@ pub mod tests {
     use crate::{CubicBSpline, RasterBounds, ResamplingFilter, Warper};
 
     pub fn reference_setup() -> (RasterBounds, RasterBounds, LambertConformalConic) {
-        let source_bounds = RasterBounds::new((60.00, 67.25), (32.75, 40.0), 0.25, 0.25).unwrap();
+        let source_bounds = RasterBounds::new((60.00, 67.75), (32.25, 40.0), 0.25, 0.25).unwrap();
 
         let target_bounds = RasterBounds::new(
             (2_320_000. - 4_000_000., 2_740_000. - 4_000_000.),
@@ -248,7 +248,15 @@ pub mod tests {
         )
         .unwrap();
 
-        println!("{:?}", warper.internals[[0, 0]]);
+        assert_eq!(warper.internals[[0, 0]].anchor_idx, (4, 8));
+
+        for intr in warper.internals.iter() {
+            let x_weights_sum = intr.x_weights.iter().sum::<f64>();
+            let y_weights_sum = intr.y_weights.iter().sum::<f64>();
+
+            assert_approx_eq!(f64, x_weights_sum, 6.0, epsilon = 1e-10);
+            assert_approx_eq!(f64, y_weights_sum, 6.0, epsilon = 1e-10);
+        }
     }
 
     #[test]
