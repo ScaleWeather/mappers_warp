@@ -19,6 +19,7 @@ mappers = { version = "0.6" }
 
 [dev-dependencies]
 float-cmp = { version = "0.9" }
+ndarray-npy = { version = "0.8" }
 
 [features]
 default = []

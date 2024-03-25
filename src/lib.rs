@@ -191,6 +191,8 @@ impl Warper {
         }
 
         let target_raster = self.internals.map(|intr| {
+            println!("{:?}", intr.anchor_idx);
+
             let values = lonlat_raster.slice(s![
                 (intr.anchor_idx.0 - 1) as usize..(intr.anchor_idx.0 + 3) as usize,
                 (intr.anchor_idx.1 - 1) as usize..(intr.anchor_idx.1 + 3) as usize
@@ -204,7 +206,7 @@ impl Warper {
                 let mut inner_result_accum = 0.0;
 
                 for i in 0..4 {
-                    let value = values[[i, j]];
+                    let value = values[[j, i]];
                     let x_weight = intr.x_weights[i];
 
                     inner_weight_accum += x_weight;
