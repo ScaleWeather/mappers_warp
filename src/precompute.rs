@@ -1,7 +1,10 @@
 use mappers::Projection;
 use ndarray::Array2;
 
-use crate::{IXJYPair, LonLatPair, RasterBounds, WarperError, XYPair};
+use crate::{
+    warp_params::WarperParameters, IXJYPair, LonLatPair, RasterBounds, ResamplingFilter,
+    ResamplingKernelInternals, WarperError, XYPair,
+};
 
 pub(crate) fn precompute_ixs_jys(
     source_bounds: &RasterBounds,
@@ -50,6 +53,45 @@ pub(crate) fn precompute_ixs_jys(
     })?;
 
     Ok(precomputed_coords)
+}
+
+pub(crate) fn precompute_internals<F: ResamplingFilter>(
+    tgt_ixs_jys: &Array2<IXJYPair>,
+    params: &WarperParameters,
+) -> Result<Array2<ResamplingKernelInternals>, WarperError> {
+    let internals = tgt_ixs_jys.map(|&crds| {
+        let anchor_idx = (crds.ix.floor() as u32, crds.jy.floor() as u32);
+
+        let src_x = crds.ix - params.offsets.i as f64;
+        let src_y = crds.jy - params.offsets.j as f64;
+
+        let delta_x = src_x - 0.5 - (src_x - 0.5).floor();
+        let delta_y = src_y - 0.5 - (src_y - 0.5).floor();
+
+        let x_weights = [-1, 0, 1, 2].map(|i| {
+            if params.scales.x < 1.0 {
+                F::apply((i as f64 - delta_x) * params.scales.x)
+            } else {
+                F::apply(i as f64 - delta_x)
+            }
+        });
+
+        let y_weights = [-1, 0, 1, 2].map(|j| {
+            if params.scales.y < 1.0 {
+                F::apply((j as f64 - delta_y) * params.scales.y)
+            } else {
+                F::apply(j as f64 - delta_y)
+            }
+        });
+
+        ResamplingKernelInternals {
+            anchor_idx,
+            x_weights,
+            y_weights,
+        }
+    });
+
+    Ok(internals)
 }
 
 #[cfg(test)]

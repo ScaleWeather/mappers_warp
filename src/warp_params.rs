@@ -7,8 +7,8 @@ use crate::{
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub(super) struct WarperParameters {
-    scales: XYPair,
-    offsets: IJPair,
+    pub scales: XYPair,
+    pub offsets: IJPair,
 }
 
 impl WarperParameters {

@@ -47,7 +47,48 @@ pub struct CubicBSpline;
 
 impl ResamplingFilter for CubicBSpline {
     fn apply(x: f64) -> f64 {
-        todo!()
+        // const double xp2 = x + 2.0;
+        // const double xp1 = x + 1.0;
+        // const double xm1 = x - 1.0;
+
+        // const double xp2c = xp2 * xp2 * xp2;
+
+        // return xp2 > 0.0
+        //            ? ((xp1 > 0.0)
+        //                   ? ((x > 0.0)
+        //                          ? ((xm1 > 0.0) ? -4.0 * xm1 * xm1 * xm1 : 0.0) +
+        //                                6.0 * x * x * x
+        //                          : 0.0) +
+        //                         -4.0 * xp1 * xp1 * xp1
+        //                   : 0.0) +
+        //                  xp2c
+        //            : 0.0;  // * 0.166666666666666666666
+
+        let xp2 = x + 2.0;
+        let xp1 = x + 1.0;
+        let xm1 = x - 1.0;
+
+        let xp2c = xp2 * xp2 * xp2;
+
+        let mut res = 0.0;
+
+        if xm1 > 0.0 {
+            res += -4.0 * xm1 * xm1 * xm1;
+        };
+
+        if x > 0.0 {
+            res += 6.0 * x * x * x;
+        };
+
+        if xp1 > 0.0 {
+            res += -4.0 * xp1 * xp1 * xp1;
+        };
+
+        if xp2 > 0.0 {
+            res += xp2c;
+        };
+
+        res
     }
 
     const X_RADIUS: f64 = 2.0;
@@ -128,14 +169,15 @@ impl RasterBounds {
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 struct ResamplingKernelInternals {
-    anchor_pixel_idx: [u32; 2],
-    x_weights: [f64; 4],
-    y_weights: [f64; 4],
+    pub anchor_idx: (u32, u32),
+    pub x_weights: [f64; 4],
+    pub y_weights: [f64; 4],
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Warper {
-    internals: ResamplingKernelInternals,
+    source_shape: [u32; 2],
+    internals: Array2<ResamplingKernelInternals>,
 }
 
 impl Warper {
@@ -143,14 +185,16 @@ impl Warper {
         source_bounds: &RasterBounds,
         target_bounds: &RasterBounds,
         proj: &P,
-        kernel: &F,
     ) -> Result<Self, WarperError> {
         let params = WarperParameters::compute::<F>(source_bounds, target_bounds, proj)?;
-
         let tgt_ixs_jys = precompute_ixs_jys(source_bounds, target_bounds, proj)?;
-        // precompute x_weights, y_weights
+        let internals = precompute::precompute_internals::<F>(&tgt_ixs_jys, &params)?;
+        let source_shape = [source_bounds.shape.i, source_bounds.shape.j];
 
-        todo!()
+        Ok(Self {
+            source_shape,
+            internals,
+        })
     }
 
     pub fn warp(&self, lonlat_raster: &Array2<f64>) -> Result<Array2<f64>, WarperError> {
@@ -170,9 +214,10 @@ impl Warper {
 
 #[cfg(test)]
 pub mod tests {
+    use float_cmp::assert_approx_eq;
     use mappers::{projections::LambertConformalConic, Ellipsoid};
 
-    use crate::RasterBounds;
+    use crate::{CubicBSpline, RasterBounds, ResamplingFilter, Warper};
 
     pub fn reference_setup() -> (RasterBounds, RasterBounds, LambertConformalConic) {
         let source_bounds = RasterBounds::new((60.00, 67.25), (32.75, 40.0), 0.25, 0.25).unwrap();
@@ -190,5 +235,28 @@ pub mod tests {
                 .unwrap();
 
         return (source_bounds, target_bounds, proj);
+    }
+
+    #[test]
+    fn internals() {
+        let (src_bounds, tgt_bounds, proj) = reference_setup();
+
+        let warper = Warper::initialize::<LambertConformalConic, CubicBSpline>(
+            &src_bounds,
+            &tgt_bounds,
+            &proj,
+        )
+        .unwrap();
+
+        println!("{:?}", warper.internals[[0, 0]]);
+    }
+
+    #[test]
+    fn bspline_filter() {
+        assert_approx_eq!(f64, CubicBSpline::apply(1.675), 0.0343281, epsilon = 1e-5);
+        assert_approx_eq!(f64, CubicBSpline::apply(1.231), 0.454757, epsilon = 1e-5);
+        assert_approx_eq!(f64, CubicBSpline::apply(0.115), 3.92521, epsilon = 1e-5);
+        assert_approx_eq!(f64, CubicBSpline::apply(-0.243), 3.68875, epsilon = 1e-5);
+        assert_approx_eq!(f64, CubicBSpline::apply(-1.65), 0.042875, epsilon = 1e-5);
     }
 }
