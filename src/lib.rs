@@ -1,10 +1,11 @@
+mod precompute;
 mod warp_params;
 
 use mappers::Projection;
 use ndarray::Array2;
 use thiserror::Error;
 
-use crate::warp_params::WarperParameters;
+use crate::{precompute::precompute_ixs_jys, warp_params::WarperParameters};
 
 #[derive(Error, Debug)]
 pub enum WarperError {
@@ -17,8 +18,11 @@ pub enum WarperError {
     #[error("Projection error.")]
     ProjectionError(#[from] mappers::ProjectionError),
 
-    #[error("Source raster must fully wrap .")]
+    #[error("Source raster must fully wrap.")]
     SourceRasterTooSmall,
+
+    #[error("Could not correctly convert coordinates.")]
+    ConversionError,
 }
 
 #[cfg(feature = "io")]
@@ -42,18 +46,6 @@ pub trait ResamplingFilter {
 pub struct CubicBSpline;
 
 impl ResamplingFilter for CubicBSpline {
-    fn apply(x: f64) -> f64 {
-        todo!()
-    }
-
-    const X_RADIUS: f64 = 2.0;
-    const Y_RADIUS: f64 = 2.0;
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct MitchellNetravali;
-
-impl ResamplingFilter for MitchellNetravali {
     fn apply(x: f64) -> f64 {
         todo!()
     }
@@ -155,6 +147,9 @@ impl Warper {
     ) -> Result<Self, WarperError> {
         let params = WarperParameters::compute::<F>(source_bounds, target_bounds, proj)?;
 
+        let tgt_ixs_jys = precompute_ixs_jys(source_bounds, target_bounds, proj)?;
+        // precompute x_weights, y_weights
+
         todo!()
     }
 
@@ -170,5 +165,30 @@ impl Warper {
     #[cfg(feature = "io")]
     pub fn load_from_file(path: &str) -> Result<Self, WarperIOError> {
         todo!()
+    }
+}
+
+#[cfg(test)]
+pub mod tests {
+    use mappers::{projections::LambertConformalConic, Ellipsoid};
+
+    use crate::RasterBounds;
+
+    pub fn reference_setup() -> (RasterBounds, RasterBounds, LambertConformalConic) {
+        let source_bounds = RasterBounds::new((60.00, 67.25), (32.75, 40.0), 0.25, 0.25).unwrap();
+
+        let target_bounds = RasterBounds::new(
+            (2_320_000. - 4_000_000., 2_740_000. - 4_000_000.),
+            (5_090_000. - 4_000_000., 5_640_000. - 4_000_000.),
+            10_000.,
+            10_000.,
+        )
+        .unwrap();
+
+        let proj =
+            LambertConformalConic::new(80., 24., 12.472955, 35.1728044444444, Ellipsoid::WGS84)
+                .unwrap();
+
+        return (source_bounds, target_bounds, proj);
     }
 }

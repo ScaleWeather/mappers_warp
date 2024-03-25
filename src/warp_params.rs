@@ -230,31 +230,9 @@ fn get_target_extrema_lonlat(
 #[cfg(test)]
 mod tests {
     use float_cmp::assert_approx_eq;
-    use mappers::{projections::LambertConformalConic, Ellipsoid};
 
     use super::{compute_clamped_extrema, compute_target_outer_extrema};
-    use crate::{
-        warp_params::compute_offsets_and_scales, CubicBSpline, IJPair, RasterBounds,
-        ResamplingFilter,
-    };
-
-    fn reference_setup() -> (RasterBounds, RasterBounds, LambertConformalConic) {
-        let source_bounds = RasterBounds::new((60.00, 67.25), (32.75, 40.0), 0.25, 0.25).unwrap();
-
-        let target_bounds = RasterBounds::new(
-            (2_320_000. - 4_000_000., 2_740_000. - 4_000_000.),
-            (5_090_000. - 4_000_000., 5_640_000. - 4_000_000.),
-            10_000.,
-            10_000.,
-        )
-        .unwrap();
-
-        let proj =
-            LambertConformalConic::new(80., 24., 12.472955, 35.1728044444444, Ellipsoid::WGS84)
-                .unwrap();
-
-        return (source_bounds, target_bounds, proj);
-    }
+    use crate::{tests::reference_setup, warp_params::compute_offsets_and_scales, CubicBSpline, IJPair, ResamplingFilter};
 
     #[test]
     fn assert_with_sample_values() {
