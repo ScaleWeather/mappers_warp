@@ -55,17 +55,35 @@ impl ResamplingFilter for MitchellNetravali {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
-pub struct XYTuple<T> {
-    pub x: T,
-    pub y: T,
+pub struct XYPair {
+    pub x: f64,
+    pub y: f64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+pub struct LonLatPair {
+    pub lon: f64,
+    pub lat: f64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+pub struct IXJYPair {
+    pub ix: f64,
+    pub jy: f64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+pub struct IJPair {
+    pub i: u32,
+    pub j: u32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub struct RasterBounds {
-    pub min: XYTuple<f64>,
-    pub max: XYTuple<f64>,
-    pub spacing: XYTuple<f64>,
-    pub shape: XYTuple<u32>,
+    pub min: XYPair,
+    pub max: XYPair,
+    pub spacing: XYPair,
+    pub shape: IJPair,
 }
 
 impl RasterBounds {
@@ -93,10 +111,10 @@ impl RasterBounds {
         let ny = ny as u32 + 1;
 
         Ok(Self {
-            min: XYTuple { x: min_x, y: min_y },
-            max: XYTuple { x: max_x, y: max_y },
-            spacing: XYTuple { x: dx, y: dy },
-            shape: XYTuple { x: nx, y: ny },
+            min: XYPair { x: min_x, y: min_y },
+            max: XYPair { x: max_x, y: max_y },
+            spacing: XYPair { x: dx, y: dy },
+            shape: IJPair { i: nx, j: ny },
         })
     }
 }
@@ -116,21 +134,19 @@ pub struct Warper {
     internals: ResamplingKernelInternals,
 }
 
-impl WarperBuilder {
-    pub fn new(
+impl Warper {
+    pub fn initialize(
         source_bounds: &RasterBounds,
         target_bounds: &RasterBounds,
         proj: &impl Projection,
         kernel: &impl ResamplingFilter,
     ) -> Result<Self, WarperError> {
+        let (tgt_min_extrema, tgt_max_extrema) =
+            compute_target_outer_extrema(source_bounds, target_bounds, proj)?;
+
         todo!()
     }
 
-    pub fn initiate_weights(&self) -> Result<Warper, WarperError> {
-        todo!()
-    }
-}
-impl Warper {
     pub fn warp(&self, lonlat_raster: &Array2<f64>) -> Result<Array2<f64>, WarperError> {
         todo!()
     }
@@ -150,22 +166,23 @@ fn compute_target_outer_extrema(
     source_bounds: &RasterBounds,
     target_bounds: &RasterBounds,
     proj: &impl Projection,
-) -> Result<(XYTuple<f64>, XYTuple<f64>), WarperError> {
+) -> Result<(IXJYPair, IXJYPair), WarperError> {
     let (min_extr, max_extr) = get_target_extrema_lonlat(target_bounds, proj)?;
 
-    let min_x_out = ((min_extr.x - source_bounds.min.x) / source_bounds.spacing.x) + 0.5;
-    let max_x_out = ((max_extr.x - source_bounds.min.x) / source_bounds.spacing.x) + 0.5;
-    let max_y_out = ((source_bounds.max.y - min_extr.y) / source_bounds.spacing.y) + 0.5;
-    let min_y_out = ((source_bounds.max.y - max_extr.y) / source_bounds.spacing.y) + 0.5;
+    // Shift here is because extrema are computed at edges
+    let min_x_out = ((min_extr.lon - source_bounds.min.x) / source_bounds.spacing.x) + 0.5;
+    let max_x_out = ((max_extr.lon - source_bounds.min.x) / source_bounds.spacing.x) + 0.5;
+    let max_y_out = ((source_bounds.max.y - min_extr.lat) / source_bounds.spacing.y) + 0.5;
+    let min_y_out = ((source_bounds.max.y - max_extr.lat) / source_bounds.spacing.y) + 0.5;
 
     Ok((
-        XYTuple {
-            x: min_x_out,
-            y: min_y_out,
+        IXJYPair {
+            ix: min_x_out,
+            jy: min_y_out,
         },
-        XYTuple {
-            x: max_x_out,
-            y: max_y_out,
+        IXJYPair {
+            ix: max_x_out,
+            jy: max_y_out,
         },
     ))
 }
@@ -173,7 +190,7 @@ fn compute_target_outer_extrema(
 fn get_target_extrema_lonlat(
     target_bounds: &RasterBounds,
     proj: &impl Projection,
-) -> Result<(XYTuple<f64>, XYTuple<f64>), WarperError> {
+) -> Result<(LonLatPair, LonLatPair), WarperError> {
     let x_min = target_bounds.min.x - (0.5 * target_bounds.spacing.x);
     let x_max = target_bounds.max.x + (0.5 * target_bounds.spacing.x);
     let y_min = target_bounds.min.y - (0.5 * target_bounds.spacing.y);
@@ -228,13 +245,13 @@ fn get_target_extrema_lonlat(
         })?;
 
     Ok((
-        XYTuple {
-            x: min_lon,
-            y: min_lat,
+        LonLatPair {
+            lon: min_lon,
+            lat: min_lat,
         },
-        XYTuple {
-            x: max_lon,
-            y: max_lat,
+        LonLatPair {
+            lon: max_lon,
+            lat: max_lat,
         },
     ))
 }
@@ -278,9 +295,9 @@ mod tests {
         let (min_extrema, max_extrema) =
             compute_target_outer_extrema(&source_bounds, &target_bounds, &proj).unwrap();
 
-        assert_approx_eq!(f64, min_extrema.x, 4.457122955747991, epsilon = 1e-6);
-        assert_approx_eq!(f64, min_extrema.y, 6.9363298550977959, epsilon = 1e-6);
-        assert_approx_eq!(f64, max_extrema.x, 26.145584743939651, epsilon = 1e-6);
-        assert_approx_eq!(f64, max_extrema.y, 28.72260733112293, epsilon = 1e-6);
+        assert_approx_eq!(f64, min_extrema.ix, 4.457122955747991, epsilon = 1e-6);
+        assert_approx_eq!(f64, min_extrema.jy, 6.9363298550977959, epsilon = 1e-6);
+        assert_approx_eq!(f64, max_extrema.ix, 26.145584743939651, epsilon = 1e-6);
+        assert_approx_eq!(f64, max_extrema.jy, 28.72260733112293, epsilon = 1e-6);
     }
 }
