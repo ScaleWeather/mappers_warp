@@ -2,7 +2,7 @@ mod precompute;
 mod warp_params;
 
 use mappers::Projection;
-use ndarray::Array2;
+use ndarray::{s, Array2};
 use thiserror::Error;
 
 use crate::{precompute::precompute_ixs_jys, warp_params::WarperParameters};
@@ -23,6 +23,9 @@ pub enum WarperError {
 
     #[error("Could not correctly convert coordinates.")]
     ConversionError,
+
+    #[error("Warping produced non-finite value.")]
+    WarpingError,
 }
 
 #[cfg(feature = "io")]
@@ -47,23 +50,6 @@ pub struct CubicBSpline;
 
 impl ResamplingFilter for CubicBSpline {
     fn apply(x: f64) -> f64 {
-        // const double xp2 = x + 2.0;
-        // const double xp1 = x + 1.0;
-        // const double xm1 = x - 1.0;
-
-        // const double xp2c = xp2 * xp2 * xp2;
-
-        // return xp2 > 0.0
-        //            ? ((xp1 > 0.0)
-        //                   ? ((x > 0.0)
-        //                          ? ((xm1 > 0.0) ? -4.0 * xm1 * xm1 * xm1 : 0.0) +
-        //                                6.0 * x * x * x
-        //                          : 0.0) +
-        //                         -4.0 * xp1 * xp1 * xp1
-        //                   : 0.0) +
-        //                  xp2c
-        //            : 0.0;  // * 0.166666666666666666666
-
         let xp2 = x + 2.0;
         let xp1 = x + 1.0;
         let xm1 = x - 1.0;
@@ -198,7 +184,51 @@ impl Warper {
     }
 
     pub fn warp(&self, lonlat_raster: &Array2<f64>) -> Result<Array2<f64>, WarperError> {
-        todo!()
+        if lonlat_raster.shape()[0] != self.source_shape[0] as usize
+            || lonlat_raster.shape()[1] != self.source_shape[1] as usize
+        {
+            return Err(WarperError::InvalidRasterDimensions);
+        }
+
+        let target_raster = self.internals.map(|intr| {
+            let values = lonlat_raster.slice(s![
+                (intr.anchor_idx.0 - 1) as usize..(intr.anchor_idx.0 + 3) as usize,
+                (intr.anchor_idx.1 - 1) as usize..(intr.anchor_idx.1 + 3) as usize
+            ]);
+
+            let mut weight_accum = 0.0;
+            let mut result_accum = 0.0;
+
+            for j in 0..4 {
+                let mut inner_weight_accum = 0.0;
+                let mut inner_result_accum = 0.0;
+
+                for i in 0..4 {
+                    let value = values[[i, j]];
+                    let x_weight = intr.x_weights[i];
+
+                    inner_weight_accum += x_weight;
+                    inner_result_accum += x_weight * value;
+                }
+
+                let y_weight = intr.y_weights[j];
+
+                weight_accum += inner_weight_accum * y_weight;
+                result_accum += inner_result_accum * y_weight;
+            }
+
+            result_accum / weight_accum
+        });
+
+        target_raster.fold(Ok(()), |_, &v| -> Result<(), WarperError> {
+            if !v.is_finite() {
+                return Err(WarperError::WarpingError);
+            }
+
+            Ok(())
+        })?;
+
+        Ok(target_raster)
     }
 
     #[cfg(feature = "io")]
