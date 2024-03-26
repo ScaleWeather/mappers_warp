@@ -204,7 +204,7 @@ impl Warper {
                 let mut inner_result_accum = 0.0;
 
                 for i in 0..4 {
-                    let value = values[[i, j]];
+                    let value = values[[j, i]];
                     let x_weight = intr.x_weights[i];
 
                     inner_weight_accum += x_weight;
