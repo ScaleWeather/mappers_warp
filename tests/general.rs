@@ -25,8 +25,8 @@ fn waves() {
     )
     .unwrap();
 
-    let source_raster: Array2<f64> = ndarray_npy::read_npy("./test-data/waves_34.npy").unwrap();
-    let ref_raster: Array2<f64> = ndarray_npy::read_npy("./test-data/waves_ref.npy").unwrap();
+    let source_raster: Array2<f64> = ndarray_npy::read_npy("./tests/data/waves_34.npy").unwrap();
+    let ref_raster: Array2<f64> = ndarray_npy::read_npy("./tests/data/waves_ref.npy").unwrap();
     let target_raster = warper.warp(&source_raster).unwrap();
 
     assert_eq!(target_raster.shape(), ref_raster.shape());

@@ -113,13 +113,8 @@ fn compute_delta(crds: &IXJYPair, params: &WarperParameters) -> XYPair {
 #[cfg(test)]
 mod tests {
     use float_cmp::assert_approx_eq;
-    use mappers::{projections::LambertConformalConic, Ellipsoid};
-    use ndarray::Array2;
 
-    use crate::{
-        tests::reference_setup, warp_params::WarperParameters, CubicBSpline, IXJYPair,
-        RasterBounds, Warper,
-    };
+    use crate::{tests::reference_setup, warp_params::WarperParameters, CubicBSpline, IXJYPair};
 
     use super::precompute_ixs_jys;
 
@@ -149,53 +144,5 @@ mod tests {
 
         assert_approx_eq!(f64, delta.x, 0.21021603163737268, epsilon = 1e-6);
         assert_approx_eq!(f64, delta.y, 0.38872932507018731, epsilon = 1e-6);
-    }
-
-    #[test]
-    fn shift_investigation() {
-        let source_bounds = RasterBounds::new((60.00, 68.25), (31.75, 40.0), 0.25, 0.25).unwrap();
-
-        let target_bounds = RasterBounds::new(
-            (2_320_000. - 4_000_000., 2_740_000. - 4_000_000.),
-            (5_090_000. - 4_000_000., 5_640_000. - 4_000_000.),
-            10_000.,
-            10_000.,
-        )
-        .unwrap();
-
-        let proj =
-            LambertConformalConic::new(80., 24., 12.472955, 35.1728044444444, Ellipsoid::WGS84)
-                .unwrap();
-
-        let warper = Warper::initialize::<LambertConformalConic, CubicBSpline>(
-            &source_bounds,
-            &target_bounds,
-            &proj,
-        )
-        .unwrap();
-
-        let source_raster: Array2<f64> = ndarray_npy::read_npy("./test-data/waves_34.npy").unwrap();
-        let target_raster = warper.warp(&source_raster).unwrap();
-
-        let ixs_jys = precompute_ixs_jys(&source_bounds, &target_bounds, &proj).unwrap();
-
-        let crd = ixs_jys[[38, 28]];
-
-        let params =
-            WarperParameters::compute::<CubicBSpline>(&source_bounds, &target_bounds, &proj)
-                .unwrap();
-
-        let delta = super::compute_delta(&crd, &params);
-        let anchor = warper.internals[[38, 28]].anchor_idx;
-
-        println!("coords: {:?}", crd);
-        println!("delta: {:?}", delta);
-
-        println!("value: {:?}", target_raster[[38, 28]]);
-        println!("{:?}", warper.internals[[38, 28]]);
-        println!(
-            "src input 00: {:?}",
-            source_raster[[anchor.1 as usize, anchor.0 as usize]]
-        );
     }
 }
