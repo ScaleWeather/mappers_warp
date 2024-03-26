@@ -22,7 +22,12 @@ float-cmp = { version = "0.9" }
 ndarray-npy = { version = "0.8" }
 anyhow = { version = "1.0" }
 ndarray-stats = { version = "0.5" }
+criterion = { version = "0.5" }
 
 [features]
 default = []
 io = ["ndarray/serde", "bincode"]
+
+[[bench]]
+name = "warp"
+harness = false
