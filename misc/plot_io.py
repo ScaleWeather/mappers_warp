@@ -14,6 +14,13 @@ def main():
     print(dx.max(), dx.min())
     print(dy.max(), dy.min())
 
+    max_diff_idx = numpy.unravel_index(numpy.argmax(diff), diff.shape)
+
+    print(max_diff_idx)
+    print(diff[max_diff_idx[0], max_diff_idx[1]])
+    print(tgt[max_diff_idx[0], max_diff_idx[1]])
+    print(ref[max_diff_idx[0], max_diff_idx[1]])
+
     fig, ax = plt.subplots(1, 3)
 
     cr1 = ax[0].imshow(ref)

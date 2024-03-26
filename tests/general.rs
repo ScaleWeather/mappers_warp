@@ -34,15 +34,15 @@ fn waves_34() {
     let diff = Zip::from(&target_raster)
         .and(&ref_raster)
         .map_collect(|&f, &o| (f - o).abs());
-
-    println!("{:?}\n", diff);
-
+    
     println!("mean: {:?}", diff.mean().unwrap());
     println!("std: {:?}", diff.std(0.));
     println!("max: {:?}", diff.max().unwrap());
     println!("min: {:?}", diff.min().unwrap());
 
     ndarray_npy::write_npy("./misc/waves_34_warped.npy", &target_raster).unwrap();
+
+    println!("{:?}", target_raster[[38,28]]);
 
     todo!("Target is shifted by +0.5 +0.5. Investigate why.")
 }
