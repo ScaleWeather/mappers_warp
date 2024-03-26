@@ -4,3 +4,4 @@ Cargo.lock
 **.aux.xml
 **.grib
 **.idx
+/test-data/result.npy
