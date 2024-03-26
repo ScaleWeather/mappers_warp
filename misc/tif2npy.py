@@ -3,11 +3,13 @@ import rasterio
 
 
 def main():
-    ll = rasterio.open("./misc/lonlat-p25.tif").read()
-    lcc = rasterio.open("./misc/lcc-india-p25.tif").read()
+    ll = rasterio.open("./misc/lcc-waves.tif").read().squeeze()
 
-    numpy.save("./misc/ll-p25.npy", ll)
-    numpy.save("./misc/lcc-p25.npy", lcc)
+    ll = numpy.array(ll)
+
+    ll = ll.astype(numpy.float64)
+
+    numpy.save("./test-data/waves_ref.npy", ll)
 
 if __name__ == '__main__':
     main()

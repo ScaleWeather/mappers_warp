@@ -3,12 +3,6 @@ import numpy
 
 
 def main():
-    rng = numpy.random.default_rng(seed=42)
-
-    arr = rng.random((34, 34))
-
-    numpy.save("./test-data/random_square_34.npy", arr)
-
     x = numpy.linspace(1, 5, 34)
     y = numpy.linspace(1, 7, 34)
 
@@ -18,6 +12,8 @@ def main():
 
     plt.imshow(z)
     plt.show()
+
+    print(z.dtype)
 
     numpy.save("./test-data/waves_34.npy", z)
 
