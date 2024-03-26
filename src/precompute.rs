@@ -6,7 +6,6 @@ use crate::{
     ResamplingKernelInternals, WarperError, XYPair,
 };
 
-// DEBUG: This function is okay
 pub(crate) fn precompute_ixs_jys(
     source_bounds: &RasterBounds,
     target_bounds: &RasterBounds,
@@ -58,14 +57,17 @@ pub(crate) fn precompute_ixs_jys(
     Ok(precomputed_coords)
 }
 
-
-// DEBUG: Weights and anchors seem fine
 pub(crate) fn precompute_internals<F: ResamplingFilter>(
     tgt_ixs_jys: &Array2<IXJYPair>,
     params: &WarperParameters,
 ) -> Result<Array2<ResamplingKernelInternals>, WarperError> {
+    // 0.5 shift because we want to get nearest midpoint
+    // but ixs, yjs are measured from the edge corner
     let internals = tgt_ixs_jys.map(|&crds| {
-        let anchor_idx = (crds.ix.floor() as u32, crds.jy.floor() as u32);
+        let anchor_idx = (
+            (crds.ix - 0.5).floor() as u32,
+            (crds.jy - 0.5).floor() as u32,
+        );
 
         let src_x = crds.ix - params.offsets.i as f64;
         let src_y = crds.jy - params.offsets.j as f64;
@@ -95,16 +97,6 @@ pub(crate) fn precompute_internals<F: ResamplingFilter>(
             y_weights,
         }
     });
-
-    let dbg_anchors_x = internals.map(|intr| {
-        intr.anchor_idx.0
-    });
-    let dbg_anchors_y = internals.map(|intr| {
-        intr.anchor_idx.1
-    });
-
-    ndarray_npy::write_npy("./test-data/dbg_anchors_x.npy", &dbg_anchors_x).unwrap();
-    ndarray_npy::write_npy("./test-data/dbg_anchors_y.npy", &dbg_anchors_y).unwrap();
 
     Ok(internals)
 }
