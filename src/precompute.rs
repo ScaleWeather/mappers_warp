@@ -69,7 +69,7 @@ pub(crate) fn precompute_internals<F: ResamplingFilter>(
             (crds.jy - 0.5).floor() as u32,
         );
 
-        let delta = compute_delta(&crds, params);
+        let delta = compute_deltas(&crds, params);
 
         let x_weights = [-1, 0, 1, 2].map(|i| {
             if params.scales.x < 1.0 {
@@ -97,7 +97,8 @@ pub(crate) fn precompute_internals<F: ResamplingFilter>(
     Ok(internals)
 }
 
-fn compute_delta(crds: &IXJYPair, params: &WarperParameters) -> XYPair {
+#[inline(always)]
+fn compute_deltas(crds: &IXJYPair, params: &WarperParameters) -> XYPair {
     let src_x = crds.ix - params.offsets.i as f64;
     let src_y = crds.jy - params.offsets.j as f64;
 
@@ -140,7 +141,7 @@ mod tests {
             jy: 8.8887293250701873,
         };
 
-        let delta = super::compute_delta(&crds, &params);
+        let delta = super::compute_deltas(&crds, &params);
 
         assert_approx_eq!(f64, delta.x, 0.21021603163737268, epsilon = 1e-6);
         assert_approx_eq!(f64, delta.y, 0.38872932507018731, epsilon = 1e-6);

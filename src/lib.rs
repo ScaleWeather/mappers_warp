@@ -162,20 +162,21 @@ struct ResamplingKernelInternals {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Warper {
+    // uses ndarray convention [y, x]
     source_shape: [u32; 2],
     internals: Array2<ResamplingKernelInternals>,
 }
 
 impl Warper {
-    pub fn initialize<P: Projection, F: ResamplingFilter>(
+    pub fn initialize<F: ResamplingFilter>(
         source_bounds: &RasterBounds,
         target_bounds: &RasterBounds,
-        proj: &P,
+        proj: &impl Projection,
     ) -> Result<Self, WarperError> {
         let params = WarperParameters::compute::<F>(source_bounds, target_bounds, proj)?;
         let tgt_ixs_jys = precompute_ixs_jys(source_bounds, target_bounds, proj)?;
         let internals = precompute::precompute_internals::<F>(&tgt_ixs_jys, &params)?;
-        let source_shape = [source_bounds.shape.i, source_bounds.shape.j];
+        let source_shape = [source_bounds.shape.j, source_bounds.shape.i];
 
         Ok(Self {
             source_shape,
@@ -271,7 +272,7 @@ pub mod tests {
     fn internals() {
         let (src_bounds, tgt_bounds, proj) = reference_setup();
 
-        let warper = Warper::initialize::<LambertConformalConic, CubicBSpline>(
+        let warper = Warper::initialize::<CubicBSpline>(
             &src_bounds,
             &tgt_bounds,
             &proj,
