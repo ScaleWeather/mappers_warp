@@ -6,16 +6,17 @@ use crate::{
     ResamplingKernelInternals, WarperError, XYPair,
 };
 
+// DEBUG: This function is okay
 pub(crate) fn precompute_ixs_jys(
     source_bounds: &RasterBounds,
     target_bounds: &RasterBounds,
     proj: &impl Projection,
 ) -> Result<Array2<IXJYPair>, WarperError> {
-    let tgt_ur_edge_corner = XYPair {
+    let tgt_ul_edge_corner = XYPair {
         x: target_bounds.min.x - (0.5 * target_bounds.spacing.x),
         y: target_bounds.max.y + (0.5 * target_bounds.spacing.y),
     };
-    let src_ur_edge_corner = LonLatPair {
+    let src_ul_edge_corner = LonLatPair {
         lon: source_bounds.min.x - (0.5 * source_bounds.spacing.x),
         lat: source_bounds.max.y + (0.5 * source_bounds.spacing.y),
     };
@@ -30,17 +31,19 @@ pub(crate) fn precompute_ixs_jys(
             target_bounds.shape.j as usize,
             target_bounds.shape.i as usize,
         ),
-        |(i, j)| {
+        |(j, i)| {
             // 0.5 shift is because we are measuring from edge corner to midpoint
-            let tgt_x = tgt_ur_edge_corner.x + ((i as f64 + 0.5) * target_bounds.spacing.x);
-            let tgt_y = tgt_ur_edge_corner.y - ((j as f64 + 0.5) * target_bounds.spacing.y);
+            let tgt_x = tgt_ul_edge_corner.x + ((i as f64 + 0.5) * target_bounds.spacing.x);
+            let tgt_y = tgt_ul_edge_corner.y - ((j as f64 + 0.5) * target_bounds.spacing.y);
 
             let (tgt_lon, tgt_lat) = proj.inverse_project_unchecked(tgt_x, tgt_y);
 
-            IXJYPair {
-                ix: (tgt_lon - src_ur_edge_corner.lon) * conversion_scaling.x,
-                jy: (src_ur_edge_corner.lat - tgt_lat) * conversion_scaling.y,
-            }
+            let result = IXJYPair {
+                ix: (tgt_lon - src_ul_edge_corner.lon) * conversion_scaling.x,
+                jy: (src_ul_edge_corner.lat - tgt_lat) * conversion_scaling.y,
+            };
+
+            result
         },
     );
 
@@ -55,6 +58,8 @@ pub(crate) fn precompute_ixs_jys(
     Ok(precomputed_coords)
 }
 
+
+// DEBUG: Weights and anchors seem fine
 pub(crate) fn precompute_internals<F: ResamplingFilter>(
     tgt_ixs_jys: &Array2<IXJYPair>,
     params: &WarperParameters,
@@ -90,6 +95,16 @@ pub(crate) fn precompute_internals<F: ResamplingFilter>(
             y_weights,
         }
     });
+
+    let dbg_anchors_x = internals.map(|intr| {
+        intr.anchor_idx.0
+    });
+    let dbg_anchors_y = internals.map(|intr| {
+        intr.anchor_idx.1
+    });
+
+    ndarray_npy::write_npy("./test-data/dbg_anchors_x.npy", &dbg_anchors_x).unwrap();
+    ndarray_npy::write_npy("./test-data/dbg_anchors_y.npy", &dbg_anchors_y).unwrap();
 
     Ok(internals)
 }
