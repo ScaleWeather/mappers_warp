@@ -113,28 +113,32 @@ fn compute_deltas(crds: &IXJYPair, params: &WarperParameters) -> XYPair {
 
 #[cfg(test)]
 mod tests {
+    use anyhow::Result;
     use float_cmp::assert_approx_eq;
 
-    use crate::{tests::reference_setup, warp_params::WarperParameters, CubicBSpline, IXJYPair};
+    use crate::{
+        tests::reference_setup, warp_params::WarperParameters, CubicBSpline, IXJYPair, Warper,
+    };
 
     use super::precompute_ixs_jys;
 
     #[test]
-    fn ix_jy() {
-        let (src_bounds, tgt_bounds, proj) = reference_setup();
+    fn ix_jy() -> Result<()> {
+        let (src_bounds, tgt_bounds, proj) = reference_setup()?;
 
-        let ixs_jys = precompute_ixs_jys(&src_bounds, &tgt_bounds, &proj).unwrap();
+        let ixs_jys = precompute_ixs_jys(&src_bounds, &tgt_bounds, &proj)?;
 
         assert_approx_eq!(f64, ixs_jys[[0, 0]].ix, 4.7102160316373727, epsilon = 1e-6);
         assert_approx_eq!(f64, ixs_jys[[0, 0]].jy, 8.8887293250701873, epsilon = 1e-6);
+
+        Ok(())
     }
 
     #[test]
-    fn delta() {
-        let (src_bounds, tgt_bounds, proj) = reference_setup();
+    fn delta() -> Result<()> {
+        let (src_bounds, tgt_bounds, proj) = reference_setup()?;
 
-        let params =
-            WarperParameters::compute::<CubicBSpline>(&src_bounds, &tgt_bounds, &proj).unwrap();
+        let params = WarperParameters::compute::<CubicBSpline>(&src_bounds, &tgt_bounds, &proj)?;
 
         let crds = IXJYPair {
             ix: 4.7102160316373727,
@@ -145,5 +149,26 @@ mod tests {
 
         assert_approx_eq!(f64, delta.x, 0.21021603163737268, epsilon = 1e-6);
         assert_approx_eq!(f64, delta.y, 0.38872932507018731, epsilon = 1e-6);
+
+        Ok(())
+    }
+
+    #[test]
+    fn internals() -> Result<()> {
+        let (src_bounds, tgt_bounds, proj) = reference_setup()?;
+
+        let warper = Warper::initialize::<CubicBSpline>(&src_bounds, &tgt_bounds, &proj)?;
+
+        assert_eq!(warper.internals[[0, 0]].anchor_idx, (4, 8));
+
+        for intr in warper.internals.iter() {
+            let x_weights_sum = intr.x_weights.iter().sum::<f64>();
+            let y_weights_sum = intr.y_weights.iter().sum::<f64>();
+
+            assert_approx_eq!(f64, x_weights_sum, 6.0, epsilon = 1e-10);
+            assert_approx_eq!(f64, y_weights_sum, 6.0, epsilon = 1e-10);
+        }
+
+        Ok(())
     }
 }

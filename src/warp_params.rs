@@ -229,14 +229,18 @@ fn get_target_extrema_lonlat(
 
 #[cfg(test)]
 mod tests {
+    use anyhow::Result;
     use float_cmp::assert_approx_eq;
 
     use super::{compute_clamped_extrema, compute_target_outer_extrema};
-    use crate::{tests::reference_setup, warp_params::compute_offsets_and_scales, CubicBSpline, IJPair, ResamplingFilter};
+    use crate::{
+        tests::reference_setup, warp_params::compute_offsets_and_scales, CubicBSpline, IJPair,
+        ResamplingFilter,
+    };
 
     #[test]
-    fn assert_with_sample_values() {
-        let (source_bounds, target_bounds, proj) = reference_setup();
+    fn assert_with_sample_values() -> Result<()> {
+        let (source_bounds, target_bounds, proj) = reference_setup()?;
 
         let extrema = compute_target_outer_extrema(&source_bounds, &target_bounds, &proj).unwrap();
 
@@ -245,7 +249,7 @@ mod tests {
         assert_approx_eq!(f64, extrema.max.ix, 26.145584743939651, epsilon = 1e-6);
         assert_approx_eq!(f64, extrema.max.jy, 28.72260733112293, epsilon = 1e-6);
 
-        let clamped_extrema = compute_clamped_extrema(&extrema, &source_bounds.shape, 1).unwrap();
+        let clamped_extrema = compute_clamped_extrema(&extrema, &source_bounds.shape, 1)?;
 
         assert_eq!(clamped_extrema.min.i, 4);
         assert_eq!(clamped_extrema.min.j, 6);
@@ -268,5 +272,7 @@ mod tests {
         assert_eq!(offsets.j, 4);
         assert_approx_eq!(f64, scales.x, 1.9826210092691527, epsilon = 1e-6);
         assert_approx_eq!(f64, scales.y, 2.5704253542912783, epsilon = 1e-6);
+
+        Ok(())
     }
 }

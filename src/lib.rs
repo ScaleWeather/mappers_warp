@@ -5,37 +5,46 @@ use mappers::Projection;
 use ndarray::{s, Array2};
 use thiserror::Error;
 
+#[cfg(feature = "io")]
+use serde::{Deserialize, Serialize};
+#[cfg(feature = "io")]
+use std::fs::File;
+#[cfg(feature = "io")]
+use std::io::{BufReader, BufWriter};
+#[cfg(feature = "io")]
+use std::path::Path;
+
 use crate::{precompute::precompute_ixs_jys, warp_params::WarperParameters};
 
 #[derive(Error, Debug)]
 pub enum WarperError {
-    #[error("Invalid raster dimensions.")]
+    #[error("Invalid raster dimensions")]
     InvalidRasterDimensions,
 
-    #[error("Ndarray error.")]
+    #[error("Ndarray error {0}")]
     NdarrayError(#[from] ndarray::ShapeError),
 
-    #[error("Projection error.")]
+    #[error("Projection error {0}")]
     ProjectionError(#[from] mappers::ProjectionError),
 
-    #[error("Source raster must fully wrap.")]
+    #[error("Source raster must fully wrap")]
     SourceRasterTooSmall,
 
-    #[error("Could not correctly convert coordinates.")]
+    #[error("Could not correctly convert coordinates")]
     ConversionError,
 
-    #[error("Warping produced non-finite value.")]
+    #[error("Warping produced non-finite value")]
     WarpingError,
 }
 
 #[cfg(feature = "io")]
-#[derive(Error, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Error, Debug)]
 pub enum WarperIOError {
-    #[error("File not found.")]
-    FileNotFound,
+    #[error("IO error {0}")]
+    IoError(#[from] std::io::Error),
 
-    #[error("Invalid file.")]
-    InvalidFile,
+    #[error("Bincode error {0}")]
+    BincodeError(#[from] bincode::Error),
 }
 
 pub trait ResamplingFilter {
@@ -154,6 +163,7 @@ impl RasterBounds {
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
+#[cfg_attr(feature = "io", derive(Serialize, Deserialize))]
 struct ResamplingKernelInternals {
     pub anchor_idx: (u32, u32),
     pub x_weights: [f64; 4],
@@ -161,6 +171,7 @@ struct ResamplingKernelInternals {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "io", derive(Serialize, Deserialize))]
 pub struct Warper {
     // uses ndarray convention [y, x]
     source_shape: [u32; 2],
@@ -234,60 +245,53 @@ impl Warper {
 
     #[cfg(feature = "io")]
     pub fn save_to_file(&self, path: &str) -> Result<(), WarperIOError> {
-        todo!()
+        let path = Path::new(path);
+        let file = File::create(path)?;
+        let mut buf = BufWriter::new(file);
+
+        bincode::serialize_into(&mut buf, &self)?;
+
+        Ok(())
     }
 
     #[cfg(feature = "io")]
     pub fn load_from_file(path: &str) -> Result<Self, WarperIOError> {
-        todo!()
+        let path = Path::new(path);
+        let file = File::open(path)?;
+        let mut buf = BufReader::new(file);
+
+        let warper: Self = bincode::deserialize_from(&mut buf)?;
+
+        Ok(warper)
     }
 }
 
 #[cfg(test)]
 pub mod tests {
+    #[cfg(feature = "io")]
+    use crate::Warper;
+    use anyhow::Result;
     use float_cmp::assert_approx_eq;
     use mappers::{projections::LambertConformalConic, Ellipsoid};
+    #[cfg(feature = "io")]
+    use std::fs;
 
-    use crate::{CubicBSpline, RasterBounds, ResamplingFilter, Warper};
+    use crate::{CubicBSpline, RasterBounds, ResamplingFilter};
 
-    pub fn reference_setup() -> (RasterBounds, RasterBounds, LambertConformalConic) {
-        let source_bounds = RasterBounds::new((60.00, 67.75), (32.25, 40.0), 0.25, 0.25).unwrap();
+    pub fn reference_setup() -> Result<(RasterBounds, RasterBounds, LambertConformalConic)> {
+        let source_bounds = RasterBounds::new((60.00, 67.75), (32.25, 40.0), 0.25, 0.25)?;
 
         let target_bounds = RasterBounds::new(
             (2_320_000. - 4_000_000., 2_740_000. - 4_000_000.),
             (5_090_000. - 4_000_000., 5_640_000. - 4_000_000.),
             10_000.,
             10_000.,
-        )
-        .unwrap();
+        )?;
 
         let proj =
-            LambertConformalConic::new(80., 24., 12.472955, 35.1728044444444, Ellipsoid::WGS84)
-                .unwrap();
+            LambertConformalConic::new(80., 24., 12.472955, 35.1728044444444, Ellipsoid::WGS84)?;
 
-        return (source_bounds, target_bounds, proj);
-    }
-
-    #[test]
-    fn internals() {
-        let (src_bounds, tgt_bounds, proj) = reference_setup();
-
-        let warper = Warper::initialize::<CubicBSpline>(
-            &src_bounds,
-            &tgt_bounds,
-            &proj,
-        )
-        .unwrap();
-
-        assert_eq!(warper.internals[[0, 0]].anchor_idx, (4, 8));
-
-        for intr in warper.internals.iter() {
-            let x_weights_sum = intr.x_weights.iter().sum::<f64>();
-            let y_weights_sum = intr.y_weights.iter().sum::<f64>();
-
-            assert_approx_eq!(f64, x_weights_sum, 6.0, epsilon = 1e-10);
-            assert_approx_eq!(f64, y_weights_sum, 6.0, epsilon = 1e-10);
-        }
+        Ok((source_bounds, target_bounds, proj))
     }
 
     #[test]
@@ -297,5 +301,22 @@ pub mod tests {
         assert_approx_eq!(f64, CubicBSpline::apply(0.115), 3.92521, epsilon = 1e-5);
         assert_approx_eq!(f64, CubicBSpline::apply(-0.243), 3.68875, epsilon = 1e-5);
         assert_approx_eq!(f64, CubicBSpline::apply(-1.65), 0.042875, epsilon = 1e-5);
+    }
+
+    #[cfg(feature = "io")]
+    #[test]
+    fn io() -> Result<()> {
+        let (src_bounds, tgt_bounds, proj) = reference_setup()?;
+        let warper = Warper::initialize::<CubicBSpline>(&src_bounds, &tgt_bounds, &proj)?;
+
+        warper.save_to_file("./tests/data/saved-warper.dat")?;
+
+        let loaded = Warper::load_from_file("./tests/data/saved-warper.dat")?;
+
+        fs::remove_file("./tests/data/saved-warper.dat").unwrap_or(()); // cleanup
+
+        assert_eq!(warper, loaded);
+
+        Ok(())
     }
 }
