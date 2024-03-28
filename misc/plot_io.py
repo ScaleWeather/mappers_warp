@@ -3,29 +3,16 @@ from matplotlib import pyplot as plt
 
 
 def main():
-    ref = numpy.load("./test-data/waves_ref.npy")
-    tgt = numpy.load("./misc/waves_34_warped.npy")
+    spline = numpy.load("./tests/data/gfs_t2m_cubic.npy")
+    mitchell = numpy.load("./tests/data/gfs_t2m_mitchell.npy")
 
-    diff = ref - tgt
-
-    dx = numpy.diff(tgt, axis=1)
-    dy = numpy.diff(tgt, axis=0)
-
-    print(dx.max(), dx.min())
-    print(dy.max(), dy.min())
-
-    max_diff_idx = numpy.unravel_index(numpy.argmax(diff), diff.shape)
-
-    print(max_diff_idx)
-    print(diff[max_diff_idx[0], max_diff_idx[1]])
-    print(tgt[max_diff_idx[0], max_diff_idx[1]])
-    print(ref[max_diff_idx[0], max_diff_idx[1]])
+    diff = spline - mitchell
 
     fig, ax = plt.subplots(1, 3)
 
-    cr1 = ax[0].imshow(ref)
-    cr2 = ax[1].imshow(diff)
-    cr3 = ax[2].imshow(tgt)
+    cr1 = ax[0].imshow(spline)
+    cr2 = ax[1].imshow(mitchell)
+    cr3 = ax[2].imshow(diff)
 
     fig.colorbar(cr1, ax=ax[0])
     fig.colorbar(cr2, ax=ax[1])
