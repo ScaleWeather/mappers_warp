@@ -3,7 +3,7 @@ use float_cmp::assert_approx_eq;
 use mappers::{projections::LambertConformalConic, Ellipsoid};
 use ndarray::{Array2, Zip};
 use ndarray_stats::QuantileExt;
-use not_gdalwarp::{CubicBSpline, RasterBounds, Warper};
+use not_gdalwarp::{CubicBSpline, MitchellNetravali, RasterBounds, Warper};
 
 #[test]
 fn waves() -> Result<()> {
@@ -44,6 +44,29 @@ fn gfs_t2m() -> Result<()> {
     )?;
 
     let warper = Warper::initialize::<CubicBSpline>(&source_domain, &target_domain, &eu_proj)?;
+    let source_raster: Array2<f64> = ndarray_npy::read_npy("./tests/data/gfs_t2m.npy")?;
+    let target_raster = warper.warp(&source_raster)?;
+
+    target_raster.iter().for_each(|&v| assert!(v.is_finite()));
+
+    assert!(target_raster.max()? <= source_raster.max()?);
+    assert!(target_raster.min()? >= source_raster.min()?);
+
+    Ok(())
+}
+
+#[test]
+fn mitchell() -> Result<()> {
+    let eu_proj = LambertConformalConic::new(10.0, 52.0, 35.0, 65.0, Ellipsoid::WGS84)?;
+    let source_domain = RasterBounds::new((-70.0, 85.0), (17.0, 77.0), 0.25, 0.25)?;
+    let target_domain = RasterBounds::new(
+        (-4_120_000., 3_490_000.),
+        (-2_750_000., 2_640_000.),
+        10_000.,
+        10_000.,
+    )?;
+
+    let warper = Warper::initialize::<MitchellNetravali>(&source_domain, &target_domain, &eu_proj)?;
     let source_raster: Array2<f64> = ndarray_npy::read_npy("./tests/data/gfs_t2m.npy")?;
     let target_raster = warper.warp(&source_raster)?;
 

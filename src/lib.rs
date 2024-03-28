@@ -1,5 +1,6 @@
 mod precompute;
 mod warp_params;
+mod filters;
 
 use mappers::Projection;
 use ndarray::{s, Array2};
@@ -15,6 +16,8 @@ use std::io::{BufReader, BufWriter};
 use std::path::Path;
 
 use crate::{precompute::precompute_ixs_jys, warp_params::WarperParameters};
+
+pub use filters::{CubicBSpline, ResamplingFilter, MitchellNetravali};
 
 #[derive(Error, Debug)]
 pub enum WarperError {
@@ -45,49 +48,6 @@ pub enum WarperIOError {
 
     #[error("Bincode error {0}")]
     BincodeError(#[from] bincode::Error),
-}
-
-pub trait ResamplingFilter {
-    fn apply(x: f64) -> f64;
-
-    const X_RADIUS: f64;
-    const Y_RADIUS: f64;
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct CubicBSpline;
-
-impl ResamplingFilter for CubicBSpline {
-    fn apply(x: f64) -> f64 {
-        let xp2 = x + 2.0;
-        let xp1 = x + 1.0;
-        let xm1 = x - 1.0;
-
-        let xp2c = xp2 * xp2 * xp2;
-
-        let mut res = 0.0;
-
-        if xm1 > 0.0 {
-            res += -4.0 * xm1 * xm1 * xm1;
-        };
-
-        if x > 0.0 {
-            res += 6.0 * x * x * x;
-        };
-
-        if xp1 > 0.0 {
-            res += -4.0 * xp1 * xp1 * xp1;
-        };
-
-        if xp2 > 0.0 {
-            res += xp2c;
-        };
-
-        res
-    }
-
-    const X_RADIUS: f64 = 2.0;
-    const Y_RADIUS: f64 = 2.0;
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
