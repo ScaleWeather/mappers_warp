@@ -1,6 +1,6 @@
+mod filters;
 mod precompute;
 mod warp_params;
-mod filters;
 
 use mappers::Projection;
 use ndarray::{s, Array2};
@@ -17,7 +17,7 @@ use std::path::Path;
 
 use crate::{precompute::precompute_ixs_jys, warp_params::WarperParameters};
 
-pub use filters::{CubicBSpline, ResamplingFilter, MitchellNetravali};
+pub use filters::{CubicBSpline, MitchellNetravali, ResamplingFilter};
 
 #[derive(Error, Debug)]
 pub enum WarperError {
@@ -82,19 +82,21 @@ pub(crate) struct MinMaxPair<T> {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
-pub struct RasterBounds {
+pub struct RasterBounds<P: Projection> {
     pub(crate) min: XYPair,
     pub(crate) max: XYPair,
     pub(crate) spacing: XYPair,
     pub(crate) shape: IJPair,
+    pub(crate) proj: P,
 }
 
-impl RasterBounds {
+impl<P: Projection> RasterBounds<P> {
     pub fn new(
         x_bounds: (f64, f64),
         y_bounds: (f64, f64),
         dx: f64,
         dy: f64,
+        proj: P,
     ) -> Result<Self, WarperError> {
         let (min_x, max_x) = x_bounds;
         let (min_y, max_y) = y_bounds;
@@ -118,6 +120,7 @@ impl RasterBounds {
             max: XYPair { x: max_x, y: max_y },
             spacing: XYPair { x: dx, y: dy },
             shape: IJPair { i: nx, j: ny },
+            proj,
         })
     }
 }
@@ -139,12 +142,12 @@ pub struct Warper {
 }
 
 impl Warper {
-    pub fn initialize<F: ResamplingFilter>(
-        source_bounds: &RasterBounds,
-        target_bounds: &RasterBounds,
+    pub fn initialize<F: ResamplingFilter, SP: Projection, TP: Projection>(
+        source_bounds: &RasterBounds<SP>,
+        target_bounds: &RasterBounds<TP>,
         proj: &impl Projection,
     ) -> Result<Self, WarperError> {
-        let params = WarperParameters::compute::<F>(source_bounds, target_bounds, proj)?;
+        let params = WarperParameters::compute::<F, SP, TP>(source_bounds, target_bounds, proj)?;
         let tgt_ixs_jys = precompute_ixs_jys(source_bounds, target_bounds, proj)?;
         let internals = precompute::precompute_internals::<F>(&tgt_ixs_jys, &params)?;
         let source_shape = [source_bounds.shape.j, source_bounds.shape.i];
@@ -232,26 +235,36 @@ pub mod tests {
     use crate::Warper;
     use anyhow::Result;
     use float_cmp::assert_approx_eq;
-    use mappers::{projections::LambertConformalConic, Ellipsoid};
+    use mappers::{
+        projections::{LambertConformalConic, LongitudeLatitude},
+        Ellipsoid,
+    };
     #[cfg(feature = "io")]
     use std::fs;
 
     use crate::{CubicBSpline, RasterBounds, ResamplingFilter};
 
-    pub fn reference_setup() -> Result<(RasterBounds, RasterBounds, LambertConformalConic)> {
-        let source_bounds = RasterBounds::new((60.00, 67.75), (32.25, 40.0), 0.25, 0.25)?;
+    pub fn reference_setup() -> Result<(
+        RasterBounds<LongitudeLatitude>,
+        RasterBounds<LambertConformalConic>,
+        LambertConformalConic,
+    )> {
+        let source_projection = LongitudeLatitude;
+        let target_projections =
+            LambertConformalConic::new(80., 24., 12.472955, 35.1728044444444, Ellipsoid::WGS84)?;
+
+        let source_bounds =
+            RasterBounds::new((60.00, 67.75), (32.25, 40.0), 0.25, 0.25, source_projection)?;
 
         let target_bounds = RasterBounds::new(
             (2_320_000. - 4_000_000., 2_740_000. - 4_000_000.),
             (5_090_000. - 4_000_000., 5_640_000. - 4_000_000.),
             10_000.,
             10_000.,
+            target_projections,
         )?;
 
-        let proj =
-            LambertConformalConic::new(80., 24., 12.472955, 35.1728044444444, Ellipsoid::WGS84)?;
-
-        Ok((source_bounds, target_bounds, proj))
+        Ok((source_bounds, target_bounds, target_projections))
     }
 
     #[test]
@@ -267,7 +280,11 @@ pub mod tests {
     #[test]
     fn io() -> Result<()> {
         let (src_bounds, tgt_bounds, proj) = reference_setup()?;
-        let warper = Warper::initialize::<CubicBSpline>(&src_bounds, &tgt_bounds, &proj)?;
+        let warper = Warper::initialize::<CubicBSpline, LongitudeLatitude, LambertConformalConic>(
+            &src_bounds,
+            &tgt_bounds,
+            &proj,
+        )?;
 
         warper.save_to_file("./tests/data/saved-warper.dat")?;
 

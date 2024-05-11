@@ -6,9 +6,9 @@ use crate::{
     ResamplingKernelInternals, WarperError, XYPair,
 };
 
-pub(crate) fn precompute_ixs_jys(
-    source_bounds: &RasterBounds,
-    target_bounds: &RasterBounds,
+pub(crate) fn precompute_ixs_jys<SP: Projection, TP: Projection>(
+    source_bounds: &RasterBounds<SP>,
+    target_bounds: &RasterBounds<TP>,
     proj: &impl Projection,
 ) -> Result<Array2<IXJYPair>, WarperError> {
     let tgt_ul_edge_corner = XYPair {
@@ -115,6 +115,7 @@ fn compute_deltas(crds: &IXJYPair, params: &WarperParameters) -> XYPair {
 mod tests {
     use anyhow::Result;
     use float_cmp::assert_approx_eq;
+    use mappers::projections::{LambertConformalConic, LongitudeLatitude};
 
     use crate::{
         tests::reference_setup, warp_params::WarperParameters, CubicBSpline, IXJYPair, Warper,
@@ -138,7 +139,11 @@ mod tests {
     fn delta() -> Result<()> {
         let (src_bounds, tgt_bounds, proj) = reference_setup()?;
 
-        let params = WarperParameters::compute::<CubicBSpline>(&src_bounds, &tgt_bounds, &proj)?;
+        let params = WarperParameters::compute::<
+            CubicBSpline,
+            LongitudeLatitude,
+            LambertConformalConic,
+        >(&src_bounds, &tgt_bounds, &proj)?;
 
         let crds = IXJYPair {
             ix: 4.7102160316373727,
@@ -157,7 +162,11 @@ mod tests {
     fn internals() -> Result<()> {
         let (src_bounds, tgt_bounds, proj) = reference_setup()?;
 
-        let warper = Warper::initialize::<CubicBSpline>(&src_bounds, &tgt_bounds, &proj)?;
+        let warper = Warper::initialize::<CubicBSpline, LongitudeLatitude, LambertConformalConic>(
+            &src_bounds,
+            &tgt_bounds,
+            &proj,
+        )?;
 
         assert_eq!(warper.internals[[0, 0]].anchor_idx, (4, 8));
 

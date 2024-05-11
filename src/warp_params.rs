@@ -12,9 +12,9 @@ pub(super) struct WarperParameters {
 }
 
 impl WarperParameters {
-    pub fn compute<F: ResamplingFilter>(
-        source_bounds: &RasterBounds,
-        target_bounds: &RasterBounds,
+    pub fn compute<F: ResamplingFilter, SP: Projection, TP: Projection>(
+        source_bounds: &RasterBounds<SP>,
+        target_bounds: &RasterBounds<TP>,
         proj: &impl Projection,
     ) -> Result<Self, WarperError> {
         let wrap_margin = F::X_RADIUS.max(F::Y_RADIUS) as u32;
@@ -39,9 +39,9 @@ impl WarperParameters {
     }
 }
 
-fn compute_target_outer_extrema(
-    source_bounds: &RasterBounds,
-    target_bounds: &RasterBounds,
+fn compute_target_outer_extrema<SP: Projection, TP: Projection>(
+    source_bounds: &RasterBounds<SP>,
+    target_bounds: &RasterBounds<TP>,
     proj: &impl Projection,
 ) -> Result<MinMaxPair<IXJYPair>, WarperError> {
     let tgt_extr = get_target_extrema_lonlat(target_bounds, proj)?;
@@ -95,11 +95,11 @@ fn compute_clamped_extrema(
     })
 }
 
-fn compute_offsets_and_scales(
+fn compute_offsets_and_scales<SP: Projection, TP: Projection>(
     tgt_extrema: &MinMaxPair<IXJYPair>,
     clamped_extrema: &MinMaxPair<IJPair>,
-    target_bounds: &RasterBounds,
-    source_bounds: &RasterBounds,
+    target_bounds: &RasterBounds<SP>,
+    source_bounds: &RasterBounds<TP>,
     kernel_radius: &IJPair,
 ) -> Result<(IJPair, XYPair), WarperError> {
     let offsets = compute_src_offsets(&clamped_extrema.min, &source_bounds.shape, kernel_radius)?;
@@ -158,8 +158,8 @@ fn compute_src_offsets(
     })
 }
 
-fn get_target_extrema_lonlat(
-    target_bounds: &RasterBounds,
+fn get_target_extrema_lonlat<TP: Projection>(
+    target_bounds: &RasterBounds<TP>,
     proj: &impl Projection,
 ) -> Result<MinMaxPair<LonLatPair>, WarperError> {
     let x_min = target_bounds.min.x - (0.5 * target_bounds.spacing.x);

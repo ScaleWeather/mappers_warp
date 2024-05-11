@@ -1,24 +1,33 @@
 use anyhow::Result;
 use float_cmp::assert_approx_eq;
-use mappers::{projections::LambertConformalConic, Ellipsoid};
+use mappers::{
+    projections::{LambertConformalConic, LongitudeLatitude},
+    Ellipsoid,
+};
 use ndarray::{Array2, Zip};
 use ndarray_stats::QuantileExt;
-use not_gdalwarp::{CubicBSpline, MitchellNetravali, RasterBounds, Warper};
+use notgdalwarp::{CubicBSpline, MitchellNetravali, RasterBounds, Warper};
 
 #[test]
 fn waves() -> Result<()> {
-    let source_bounds = RasterBounds::new((60.00, 68.25), (31.75, 40.0), 0.25, 0.25)?;
+    let src_proj = LongitudeLatitude;
+    let tgt_proj =
+        LambertConformalConic::new(80., 24., 12.472955, 35.1728044444444, Ellipsoid::WGS84)?;
 
+    let source_bounds = RasterBounds::new((60.00, 68.25), (31.75, 40.0), 0.25, 0.25, src_proj)?;
     let target_bounds = RasterBounds::new(
         (2_320_000. - 4_000_000., 2_740_000. - 4_000_000.),
         (5_090_000. - 4_000_000., 5_640_000. - 4_000_000.),
         10_000.,
         10_000.,
+        tgt_proj,
     )?;
 
-    let proj = LambertConformalConic::new(80., 24., 12.472955, 35.1728044444444, Ellipsoid::WGS84)?;
-
-    let warper = Warper::initialize::<CubicBSpline>(&source_bounds, &target_bounds, &proj)?;
+    let warper = Warper::initialize::<CubicBSpline, LongitudeLatitude, LambertConformalConic>(
+        &source_bounds,
+        &target_bounds,
+        &tgt_proj,
+    )?;
 
     let source_raster: Array2<f64> = ndarray_npy::read_npy("./tests/data/waves_34.npy")?;
     let ref_raster: Array2<f64> = ndarray_npy::read_npy("./tests/data/waves_ref.npy")?;
@@ -34,16 +43,23 @@ fn waves() -> Result<()> {
 
 #[test]
 fn gfs_t2m() -> Result<()> {
+    let src_proj = LongitudeLatitude;
     let eu_proj = LambertConformalConic::new(10.0, 52.0, 35.0, 65.0, Ellipsoid::WGS84)?;
-    let source_domain = RasterBounds::new((-70.0, 85.0), (17.0, 77.0), 0.25, 0.25)?;
+
+    let source_domain = RasterBounds::new((-70.0, 85.0), (17.0, 77.0), 0.25, 0.25, src_proj)?;
     let target_domain = RasterBounds::new(
         (-4_120_000., 3_490_000.),
         (-2_750_000., 2_640_000.),
         10_000.,
         10_000.,
+        eu_proj,
     )?;
 
-    let warper = Warper::initialize::<CubicBSpline>(&source_domain, &target_domain, &eu_proj)?;
+    let warper = Warper::initialize::<CubicBSpline, LongitudeLatitude, LambertConformalConic>(
+        &source_domain,
+        &target_domain,
+        &eu_proj,
+    )?;
     let source_raster: Array2<f64> = ndarray_npy::read_npy("./tests/data/gfs_t2m.npy")?;
     let target_raster = warper.warp(&source_raster)?;
 
@@ -57,16 +73,23 @@ fn gfs_t2m() -> Result<()> {
 
 #[test]
 fn mitchell() -> Result<()> {
+    let src_proj = LongitudeLatitude;
     let eu_proj = LambertConformalConic::new(10.0, 52.0, 35.0, 65.0, Ellipsoid::WGS84)?;
-    let source_domain = RasterBounds::new((-70.0, 85.0), (17.0, 77.0), 0.25, 0.25)?;
+
+    let source_domain = RasterBounds::new((-70.0, 85.0), (17.0, 77.0), 0.25, 0.25, src_proj)?;
     let target_domain = RasterBounds::new(
         (-4_120_000., 3_490_000.),
         (-2_750_000., 2_640_000.),
         10_000.,
         10_000.,
+        eu_proj,
     )?;
 
-    let warper = Warper::initialize::<MitchellNetravali>(&source_domain, &target_domain, &eu_proj)?;
+    let warper = Warper::initialize::<MitchellNetravali, LongitudeLatitude, LambertConformalConic>(
+        &source_domain,
+        &target_domain,
+        &eu_proj,
+    )?;
     let source_raster: Array2<f64> = ndarray_npy::read_npy("./tests/data/gfs_t2m.npy")?;
     let target_raster = warper.warp(&source_raster)?;
 
