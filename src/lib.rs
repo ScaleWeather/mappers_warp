@@ -145,10 +145,9 @@ impl Warper {
     pub fn initialize<F: ResamplingFilter, SP: Projection, TP: Projection>(
         source_bounds: &RasterBounds<SP>,
         target_bounds: &RasterBounds<TP>,
-        proj: &impl Projection,
     ) -> Result<Self, WarperError> {
-        let params = WarperParameters::compute::<F, SP, TP>(source_bounds, target_bounds, proj)?;
-        let tgt_ixs_jys = precompute_ixs_jys(source_bounds, target_bounds, proj)?;
+        let params = WarperParameters::compute::<F, SP, TP>(source_bounds, target_bounds)?;
+        let tgt_ixs_jys = precompute_ixs_jys(source_bounds, target_bounds)?;
         let internals = precompute::precompute_internals::<F>(&tgt_ixs_jys, &params)?;
         let source_shape = [source_bounds.shape.j, source_bounds.shape.i];
 
@@ -247,7 +246,6 @@ pub mod tests {
     pub fn reference_setup() -> Result<(
         RasterBounds<LongitudeLatitude>,
         RasterBounds<LambertConformalConic>,
-        LambertConformalConic,
     )> {
         let source_projection = LongitudeLatitude;
         let target_projections =
@@ -264,7 +262,7 @@ pub mod tests {
             target_projections,
         )?;
 
-        Ok((source_bounds, target_bounds, target_projections))
+        Ok((source_bounds, target_bounds))
     }
 
     #[test]

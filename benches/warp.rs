@@ -24,7 +24,6 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     let warper = Warper::initialize::<CubicBSpline, LongitudeLatitude, LambertConformalConic>(
         &source_domain,
         &target_domain,
-        &eu_proj,
     )
     .unwrap();
     let source_raster: Array2<f64> = ndarray_npy::read_npy("./tests/data/gfs_t2m.npy").unwrap();

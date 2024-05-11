@@ -15,11 +15,10 @@ impl WarperParameters {
     pub fn compute<F: ResamplingFilter, SP: Projection, TP: Projection>(
         source_bounds: &RasterBounds<SP>,
         target_bounds: &RasterBounds<TP>,
-        proj: &impl Projection,
     ) -> Result<Self, WarperError> {
         let wrap_margin = F::X_RADIUS.max(F::Y_RADIUS) as u32;
 
-        let tgt_extrema = compute_target_outer_extrema(source_bounds, target_bounds, proj)?;
+        let tgt_extrema = compute_target_outer_extrema(source_bounds, target_bounds)?;
 
         let clamped_extrema =
             compute_clamped_extrema(&tgt_extrema, &source_bounds.shape, wrap_margin)?;
@@ -42,9 +41,8 @@ impl WarperParameters {
 fn compute_target_outer_extrema<SP: Projection, TP: Projection>(
     source_bounds: &RasterBounds<SP>,
     target_bounds: &RasterBounds<TP>,
-    proj: &impl Projection,
 ) -> Result<MinMaxPair<IXJYPair>, WarperError> {
-    let tgt_extr = get_target_extrema_lonlat(target_bounds, proj)?;
+    let tgt_extr = get_target_extrema_lonlat(target_bounds)?;
 
     // Shift here is because extrema are computed at edges
     let min_x_out = ((tgt_extr.min.lon - source_bounds.min.x) / source_bounds.spacing.x) + 0.5;
@@ -160,7 +158,6 @@ fn compute_src_offsets(
 
 fn get_target_extrema_lonlat<TP: Projection>(
     target_bounds: &RasterBounds<TP>,
-    proj: &impl Projection,
 ) -> Result<MinMaxPair<LonLatPair>, WarperError> {
     let x_min = target_bounds.min.x - (0.5 * target_bounds.spacing.x);
     let x_max = target_bounds.max.x + (0.5 * target_bounds.spacing.x);
@@ -204,7 +201,7 @@ fn get_target_extrema_lonlat<TP: Projection>(
         .rows()
         .into_iter()
         .try_for_each(|xy| -> Result<(), WarperError> {
-            let (lon, lat) = proj.inverse_project(xy[0], xy[1])?;
+            let (lon, lat) = target_bounds.proj.inverse_project(xy[0], xy[1])?;
 
             min_lon = min_lon.min(lon);
             max_lon = max_lon.max(lon);
@@ -240,9 +237,9 @@ mod tests {
 
     #[test]
     fn assert_with_sample_values() -> Result<()> {
-        let (source_bounds, target_bounds, proj) = reference_setup()?;
+        let (source_bounds, target_bounds) = reference_setup()?;
 
-        let extrema = compute_target_outer_extrema(&source_bounds, &target_bounds, &proj).unwrap();
+        let extrema = compute_target_outer_extrema(&source_bounds, &target_bounds).unwrap();
 
         assert_approx_eq!(f64, extrema.min.ix, 4.457122955747991, epsilon = 1e-6);
         assert_approx_eq!(f64, extrema.min.jy, 6.9363298550977959, epsilon = 1e-6);

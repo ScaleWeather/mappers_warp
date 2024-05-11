@@ -26,7 +26,6 @@ fn waves() -> Result<()> {
     let warper = Warper::initialize::<CubicBSpline, LongitudeLatitude, LambertConformalConic>(
         &source_bounds,
         &target_bounds,
-        &tgt_proj,
     )?;
 
     let source_raster: Array2<f64> = ndarray_npy::read_npy("./tests/data/waves_34.npy")?;
@@ -58,7 +57,6 @@ fn gfs_t2m() -> Result<()> {
     let warper = Warper::initialize::<CubicBSpline, LongitudeLatitude, LambertConformalConic>(
         &source_domain,
         &target_domain,
-        &eu_proj,
     )?;
     let source_raster: Array2<f64> = ndarray_npy::read_npy("./tests/data/gfs_t2m.npy")?;
     let target_raster = warper.warp(&source_raster)?;
@@ -88,7 +86,6 @@ fn mitchell() -> Result<()> {
     let warper = Warper::initialize::<MitchellNetravali, LongitudeLatitude, LambertConformalConic>(
         &source_domain,
         &target_domain,
-        &eu_proj,
     )?;
     let source_raster: Array2<f64> = ndarray_npy::read_npy("./tests/data/gfs_t2m.npy")?;
     let target_raster = warper.warp(&source_raster)?;

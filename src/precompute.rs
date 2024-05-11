@@ -9,7 +9,6 @@ use crate::{
 pub(crate) fn precompute_ixs_jys<SP: Projection, TP: Projection>(
     source_bounds: &RasterBounds<SP>,
     target_bounds: &RasterBounds<TP>,
-    proj: &impl Projection,
 ) -> Result<Array2<IXJYPair>, WarperError> {
     let tgt_ul_edge_corner = XYPair {
         x: target_bounds.min.x - (0.5 * target_bounds.spacing.x),
@@ -35,7 +34,7 @@ pub(crate) fn precompute_ixs_jys<SP: Projection, TP: Projection>(
             let tgt_x = tgt_ul_edge_corner.x + ((i as f64 + 0.5) * target_bounds.spacing.x);
             let tgt_y = tgt_ul_edge_corner.y - ((j as f64 + 0.5) * target_bounds.spacing.y);
 
-            let (tgt_lon, tgt_lat) = proj.inverse_project_unchecked(tgt_x, tgt_y);
+            let (tgt_lon, tgt_lat) = target_bounds.proj.inverse_project_unchecked(tgt_x, tgt_y);
 
             let result = IXJYPair {
                 ix: (tgt_lon - src_ul_edge_corner.lon) * conversion_scaling.x,
@@ -125,9 +124,9 @@ mod tests {
 
     #[test]
     fn ix_jy() -> Result<()> {
-        let (src_bounds, tgt_bounds, proj) = reference_setup()?;
+        let (src_bounds, tgt_bounds) = reference_setup()?;
 
-        let ixs_jys = precompute_ixs_jys(&src_bounds, &tgt_bounds, &proj)?;
+        let ixs_jys = precompute_ixs_jys(&src_bounds, &tgt_bounds)?;
 
         assert_approx_eq!(f64, ixs_jys[[0, 0]].ix, 4.7102160316373727, epsilon = 1e-6);
         assert_approx_eq!(f64, ixs_jys[[0, 0]].jy, 8.8887293250701873, epsilon = 1e-6);
@@ -137,13 +136,13 @@ mod tests {
 
     #[test]
     fn delta() -> Result<()> {
-        let (src_bounds, tgt_bounds, proj) = reference_setup()?;
+        let (src_bounds, tgt_bounds) = reference_setup()?;
 
         let params = WarperParameters::compute::<
             CubicBSpline,
             LongitudeLatitude,
             LambertConformalConic,
-        >(&src_bounds, &tgt_bounds, &proj)?;
+        >(&src_bounds, &tgt_bounds)?;
 
         let crds = IXJYPair {
             ix: 4.7102160316373727,
@@ -160,12 +159,11 @@ mod tests {
 
     #[test]
     fn internals() -> Result<()> {
-        let (src_bounds, tgt_bounds, proj) = reference_setup()?;
+        let (src_bounds, tgt_bounds) = reference_setup()?;
 
         let warper = Warper::initialize::<CubicBSpline, LongitudeLatitude, LambertConformalConic>(
             &src_bounds,
             &tgt_bounds,
-            &proj,
         )?;
 
         assert_eq!(warper.internals[[0, 0]].anchor_idx, (4, 8));
