@@ -2,8 +2,8 @@ use mappers::{ConversionPipe, Projection};
 use ndarray::{concatenate, stack, Array, Axis};
 
 use crate::{
-    GenericXYPair, IJPair, IXJYPair, MinMaxPair, RasterBounds, ResamplingFilter,
-    SourceXYPair, TargetXYPair, WarperError,
+    GenericXYPair, IJPair, IXJYPair, MinMaxPair, RasterBounds, ResamplingFilter, SourceXYPair,
+    TargetXYPair, WarperError,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
@@ -44,7 +44,7 @@ fn compute_target_outer_extrema<SP: Projection, TP: Projection>(
     target_bounds: &RasterBounds<TP, TargetXYPair>,
 ) -> Result<MinMaxPair<IXJYPair>, WarperError> {
     let proj_pipe = &target_bounds.proj.pipe_to(&source_bounds.proj);
-    let tgt_extr = get_target_extrema_lonlat(target_bounds, proj_pipe)?;
+    let tgt_extr = get_target_extrema_on_source(target_bounds, proj_pipe)?;
 
     // Shift here is because extrema are computed at edges
     let min_x_out = ((tgt_extr.min.x - source_bounds.min.x) / source_bounds.spacing.x) + 0.5;
@@ -158,7 +158,7 @@ fn compute_src_offsets(
     })
 }
 
-fn get_target_extrema_lonlat<SP: Projection, TP: Projection>(
+fn get_target_extrema_on_source<SP: Projection, TP: Projection>(
     target_bounds: &RasterBounds<TP, TargetXYPair>,
     proj_pipe: &ConversionPipe<TP, SP>,
 ) -> Result<MinMaxPair<SourceXYPair>, WarperError> {
