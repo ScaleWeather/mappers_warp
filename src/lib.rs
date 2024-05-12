@@ -1,3 +1,12 @@
+#![warn(clippy::pedantic)]
+#![warn(clippy::perf)]
+#![allow(clippy::missing_errors_doc)]
+#![allow(clippy::similar_names)]
+#![allow(clippy::cast_possible_truncation)]
+#![allow(clippy::cast_possible_wrap)]
+#![allow(clippy::cast_sign_loss)]
+#![allow(clippy::cast_precision_loss)]
+
 mod filters;
 mod helpers;
 mod precompute;
@@ -50,7 +59,7 @@ impl Warper {
 
         let params = WarperParameters::compute::<F, SP, TP>(source_bounds, target_bounds)?;
         let tgt_ixs_jys = precompute_ixs_jys(source_bounds, target_bounds)?;
-        let internals = precompute::precompute_internals::<F>(&tgt_ixs_jys, &params)?;
+        let internals = precompute::precompute_internals::<F>(&tgt_ixs_jys, &params);
         let source_shape = [source_bounds.shape.j, source_bounds.shape.i];
 
         Ok(Self {
@@ -156,7 +165,7 @@ pub mod tests {
     )> {
         let source_projection = LongitudeLatitude;
         let target_projections =
-            LambertConformalConic::new(80., 24., 12.472955, 35.1728044444444, Ellipsoid::WGS84)?;
+            LambertConformalConic::new(80., 24., 12.472_955, 35.172_804_444_444_4, Ellipsoid::WGS84)?;
 
         let source_bounds =
             RasterBounds::new((60.00, 67.75), (32.25, 40.0), 0.25, 0.25, source_projection)?;

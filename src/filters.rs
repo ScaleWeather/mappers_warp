@@ -54,7 +54,7 @@ impl ResamplingFilter for MitchellNetravali {
 
         if n < 1.0 {
             (7.0 / 6.0) * n.powi(3) - 2.0 * n.powi(2) + 8.0 / 9.0
-        } else if n >= 1.0 && n < 2.0 {
+        } else if (1.0..2.0).contains(&n) {
             -7.0 / 18.0 * n.powi(3) + 2.0 * n.powi(2) - 10.0 / 3.0 * n + 16.0 / 9.0
         } else {
             0.0
@@ -70,10 +70,10 @@ mod tests {
 
     #[test]
     fn bspline_filter() {
-        assert_approx_eq!(f64, CubicBSpline::apply(1.675), 0.0343281, epsilon = 1e-5);
-        assert_approx_eq!(f64, CubicBSpline::apply(1.231), 0.454757, epsilon = 1e-5);
+        assert_approx_eq!(f64, CubicBSpline::apply(1.675), 0.034_328_1, epsilon = 1e-5);
+        assert_approx_eq!(f64, CubicBSpline::apply(1.231), 0.454_757, epsilon = 1e-5);
         assert_approx_eq!(f64, CubicBSpline::apply(0.115), 3.92521, epsilon = 1e-5);
         assert_approx_eq!(f64, CubicBSpline::apply(-0.243), 3.68875, epsilon = 1e-5);
-        assert_approx_eq!(f64, CubicBSpline::apply(-1.65), 0.042875, epsilon = 1e-5);
+        assert_approx_eq!(f64, CubicBSpline::apply(-1.65), 0.042_875, epsilon = 1e-5);
     }
 }

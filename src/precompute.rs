@@ -38,12 +38,10 @@ pub(crate) fn precompute_ixs_jys<SP: Projection, TP: Projection>(
 
             let (src_x, src_y) = proj_pipe.convert_unchecked(tgt_x, tgt_y);
 
-            let result = IXJYPair {
+            IXJYPair {
                 ix: (src_x - src_ul_edge_corner.x) * conversion_scaling.x,
                 jy: (src_ul_edge_corner.y - src_y) * conversion_scaling.y,
-            };
-
-            result
+            }
         },
     );
 
@@ -61,10 +59,10 @@ pub(crate) fn precompute_ixs_jys<SP: Projection, TP: Projection>(
 pub(crate) fn precompute_internals<F: ResamplingFilter>(
     tgt_ixs_jys: &Array2<IXJYPair>,
     params: &WarperParameters,
-) -> Result<Array2<ResamplingKernelInternals>, WarperError> {
+) -> Array2<ResamplingKernelInternals> {
     // 0.5 shift because we want to get nearest midpoint
     // but ixs, yjs are measured from the edge corner
-    let internals = tgt_ixs_jys.map(|&crds| {
+    tgt_ixs_jys.map(|&crds| {
         let anchor_idx = (
             (crds.ix - 0.5).floor() as u32,
             (crds.jy - 0.5).floor() as u32,
@@ -93,12 +91,10 @@ pub(crate) fn precompute_internals<F: ResamplingFilter>(
             x_weights,
             y_weights,
         }
-    });
-
-    Ok(internals)
+    })
 }
 
-#[inline(always)]
+#[inline]
 fn compute_deltas(crds: &IXJYPair, params: &WarperParameters) -> GenericXYPair {
     let src_x = crds.ix - params.offsets.i as f64;
     let src_y = crds.jy - params.offsets.j as f64;
@@ -134,8 +130,18 @@ mod tests {
 
         let ixs_jys = precompute_ixs_jys(&src_bounds, &tgt_bounds)?;
 
-        assert_approx_eq!(f64, ixs_jys[[0, 0]].ix, 4.7102160316373727, epsilon = 1e-6);
-        assert_approx_eq!(f64, ixs_jys[[0, 0]].jy, 8.8887293250701873, epsilon = 1e-6);
+        assert_approx_eq!(
+            f64,
+            ixs_jys[[0, 0]].ix,
+            4.710_216_031_637_372_7,
+            epsilon = 1e-6
+        );
+        assert_approx_eq!(
+            f64,
+            ixs_jys[[0, 0]].jy,
+            8.888_729_325_070_187_3,
+            epsilon = 1e-6
+        );
 
         Ok(())
     }
@@ -154,14 +160,14 @@ mod tests {
         >(&src_bounds, &tgt_bounds)?;
 
         let crds = IXJYPair {
-            ix: 4.7102160316373727,
-            jy: 8.8887293250701873,
+            ix: 4.710_216_031_637_372_7,
+            jy: 8.888_729_325_070_187_3,
         };
 
         let delta = super::compute_deltas(&crds, &params);
 
-        assert_approx_eq!(f64, delta.x, 0.21021603163737268, epsilon = 1e-6);
-        assert_approx_eq!(f64, delta.y, 0.38872932507018731, epsilon = 1e-6);
+        assert_approx_eq!(f64, delta.x, 0.210_216_031_637_372_68, epsilon = 1e-6);
+        assert_approx_eq!(f64, delta.y, 0.388_729_325_070_187_31, epsilon = 1e-6);
 
         Ok(())
     }
@@ -177,7 +183,7 @@ mod tests {
 
         assert_eq!(warper.internals[[0, 0]].anchor_idx, (4, 8));
 
-        for intr in warper.internals.iter() {
+        for intr in &warper.internals {
             let x_weights_sum = intr.x_weights.iter().sum::<f64>();
             let y_weights_sum = intr.y_weights.iter().sum::<f64>();
 

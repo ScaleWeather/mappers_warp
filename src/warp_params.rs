@@ -22,18 +22,18 @@ impl WarperParameters {
         let tgt_extrema = compute_target_outer_extrema(source_bounds, target_bounds)?;
 
         let clamped_extrema =
-            compute_clamped_extrema(&tgt_extrema, &source_bounds.shape, wrap_margin)?;
+            compute_clamped_extrema(&tgt_extrema, source_bounds.shape, wrap_margin)?;
 
         let (offsets, scales) = compute_offsets_and_scales(
             &tgt_extrema,
             &clamped_extrema,
             source_bounds,
             target_bounds,
-            &IJPair {
+            IJPair {
                 i: F::X_RADIUS as u32,
                 j: F::Y_RADIUS as u32,
             },
-        )?;
+        );
 
         Ok(WarperParameters { scales, offsets })
     }
@@ -66,7 +66,7 @@ fn compute_target_outer_extrema<SP: Projection, TP: Projection>(
 
 fn compute_clamped_extrema(
     tgt_extr: &MinMaxPair<IXJYPair>,
-    src_shape: &IJPair,
+    src_shape: IJPair,
     min_margin: u32,
 ) -> Result<MinMaxPair<IJPair>, WarperError> {
     if tgt_extr.min.ix < min_margin as f64
@@ -100,9 +100,9 @@ fn compute_offsets_and_scales<SP: Projection, TP: Projection>(
     clamped_extrema: &MinMaxPair<IJPair>,
     source_bounds: &RasterBounds<SP, SourceXYPair>,
     target_bounds: &RasterBounds<TP, TargetXYPair>,
-    kernel_radius: &IJPair,
-) -> Result<(IJPair, GenericXYPair), WarperError> {
-    let offsets = compute_src_offsets(&clamped_extrema.min, &source_bounds.shape, kernel_radius)?;
+    kernel_radius: IJPair,
+) -> (IJPair, GenericXYPair) {
+    let offsets = compute_src_offsets(clamped_extrema.min, source_bounds.shape, kernel_radius);
 
     let src_x_size_raw = ((source_bounds.shape.i - clamped_extrema.min.i) as f64)
         .min(tgt_extrema.max.ix - tgt_extrema.min.ix)
@@ -124,7 +124,7 @@ fn compute_offsets_and_scales<SP: Projection, TP: Projection>(
     let x_scale = target_bounds.shape.i as f64 / (src_x_size as f64 - src_x_extra_size);
     let y_scale = target_bounds.shape.j as f64 / (src_y_size as f64 - src_y_extra_size);
 
-    Ok((
+    (
         IJPair {
             i: offsets.i,
             j: offsets.j,
@@ -133,14 +133,10 @@ fn compute_offsets_and_scales<SP: Projection, TP: Projection>(
             x: x_scale,
             y: y_scale,
         },
-    ))
+    )
 }
 
-fn compute_src_offsets(
-    clamped_min: &IJPair,
-    src_shape: &IJPair,
-    kernel_radius: &IJPair,
-) -> Result<IJPair, WarperError> {
+fn compute_src_offsets(clamped_min: IJPair, src_shape: IJPair, kernel_radius: IJPair) -> IJPair {
     let n_src_x_off = clamped_min
         .i
         .saturating_sub(kernel_radius.i)
@@ -152,10 +148,10 @@ fn compute_src_offsets(
         .min(src_shape.j)
         .max(0);
 
-    Ok(IJPair {
+    IJPair {
         i: n_src_x_off,
         j: n_src_y_off,
-    })
+    }
 }
 
 fn get_target_extrema_on_source<SP: Projection, TP: Projection>(
@@ -247,12 +243,12 @@ mod tests {
 
         let extrema = compute_target_outer_extrema(&source_bounds, &target_bounds).unwrap();
 
-        assert_approx_eq!(f64, extrema.min.ix, 4.457122955747991, epsilon = 1e-6);
-        assert_approx_eq!(f64, extrema.min.jy, 6.9363298550977959, epsilon = 1e-6);
-        assert_approx_eq!(f64, extrema.max.ix, 26.145584743939651, epsilon = 1e-6);
-        assert_approx_eq!(f64, extrema.max.jy, 28.72260733112293, epsilon = 1e-6);
+        assert_approx_eq!(f64, extrema.min.ix, 4.457_122_955_747_991, epsilon = 1e-6);
+        assert_approx_eq!(f64, extrema.min.jy, 6.936_329_855_097_795_9, epsilon = 1e-6);
+        assert_approx_eq!(f64, extrema.max.ix, 26.145_584_743_939_651, epsilon = 1e-6);
+        assert_approx_eq!(f64, extrema.max.jy, 28.722_607_331_122_93, epsilon = 1e-6);
 
-        let clamped_extrema = compute_clamped_extrema(&extrema, &source_bounds.shape, 1)?;
+        let clamped_extrema = compute_clamped_extrema(&extrema, source_bounds.shape, 1)?;
 
         assert_eq!(clamped_extrema.min.i, 4);
         assert_eq!(clamped_extrema.min.j, 6);
@@ -264,17 +260,16 @@ mod tests {
             &clamped_extrema,
             &source_bounds,
             &target_bounds,
-            &IJPair {
+            IJPair {
                 i: CubicBSpline::X_RADIUS as u32,
                 j: CubicBSpline::Y_RADIUS as u32,
             },
-        )
-        .unwrap();
+        );
 
         assert_eq!(offsets.i, 2);
         assert_eq!(offsets.j, 4);
-        assert_approx_eq!(f64, scales.x, 1.9826210092691527, epsilon = 1e-6);
-        assert_approx_eq!(f64, scales.y, 2.5704253542912783, epsilon = 1e-6);
+        assert_approx_eq!(f64, scales.x, 1.982_621_009_269_152_7, epsilon = 1e-6);
+        assert_approx_eq!(f64, scales.y, 2.570_425_354_291_278_3, epsilon = 1e-6);
 
         Ok(())
     }
