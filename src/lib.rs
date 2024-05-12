@@ -31,7 +31,7 @@ use crate::{precompute::precompute_ixs_jys, warp_params::WarperParameters};
 pub use filters::{CubicBSpline, MitchellNetravali, ResamplingFilter};
 #[cfg(feature = "io")]
 pub use helpers::WarperIOError;
-pub use helpers::{GenericXYPair, RasterBounds, WarperError};
+pub use helpers::{GenericXYPair, RasterBounds, WarperError, raster_constant_pad};
 pub(crate) use helpers::{IJPair, IXJYPair, MinMaxPair, SourceXYPair, TargetXYPair};
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]

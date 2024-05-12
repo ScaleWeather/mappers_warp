@@ -1,4 +1,5 @@
 use mappers::Projection;
+use ndarray::{s, Array2};
 use std::fmt::Debug;
 use thiserror::Error;
 
@@ -138,5 +139,39 @@ impl<P: Projection> RasterBounds<P, GenericXYPair> {
             shape: self.shape,
             proj: self.proj,
         }
+    }
+}
+
+#[must_use]
+pub fn raster_constant_pad(raster: &Array2<f64>, padding: usize, value: f64) -> Array2<f64> {
+    let (ny, nx) = raster.dim();
+    let (ny, nx) = (ny + (2 * padding), nx + (2 * padding));
+
+    let mut padded = Array2::from_elem((ny, nx), value);
+    let mut data_region = padded.slice_mut(s![padding..ny - padding, padding..nx - padding]);
+    data_region.assign(raster);
+
+    padded.to_owned()
+}
+
+#[cfg(test)]
+mod tests {
+    use ndarray::arr2;
+
+    use crate::raster_constant_pad;
+
+    #[test]
+    fn pad() {
+        let inner = arr2(&[[1., 2., 3.], [2., 3., 4.], [3., 4., 5.]]);
+        let target = arr2(&[
+            [0., 0., 0., 0., 0.],
+            [0., 1., 2., 3., 0.],
+            [0., 2., 3., 4., 0.],
+            [0., 3., 4., 5., 0.],
+            [0., 0., 0., 0., 0.],
+        ]);
+
+        let padded = raster_constant_pad(&inner, 1, 0.);
+        assert_eq!(padded, target);
     }
 }
