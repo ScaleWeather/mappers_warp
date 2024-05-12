@@ -69,10 +69,10 @@ fn compute_clamped_extrema(
     src_shape: IJPair,
     min_margin: u32,
 ) -> Result<MinMaxPair<IJPair>, WarperError> {
-    if tgt_extr.min.ix < min_margin as f64
-        || tgt_extr.min.jy < min_margin as f64
-        || tgt_extr.max.ix > (src_shape.i - min_margin) as f64
-        || tgt_extr.max.jy > (src_shape.j - min_margin) as f64
+    if tgt_extr.min.ix < f64::from(min_margin)
+        || tgt_extr.min.jy < f64::from(min_margin)
+        || tgt_extr.max.ix > f64::from(src_shape.i - min_margin)
+        || tgt_extr.max.jy > f64::from(src_shape.j - min_margin)
     {
         return Err(WarperError::SourceRasterTooSmall);
     }
@@ -104,10 +104,10 @@ fn compute_offsets_and_scales<SP: Projection, TP: Projection>(
 ) -> (IJPair, GenericXYPair) {
     let offsets = compute_src_offsets(clamped_extrema.min, source_bounds.shape, kernel_radius);
 
-    let src_x_size_raw = ((source_bounds.shape.i - clamped_extrema.min.i) as f64)
+    let src_x_size_raw = f64::from(source_bounds.shape.i - clamped_extrema.min.i)
         .min(tgt_extrema.max.ix - tgt_extrema.min.ix)
         .max(0.0);
-    let src_y_size_raw = ((source_bounds.shape.j - clamped_extrema.min.j) as f64)
+    let src_y_size_raw = f64::from(source_bounds.shape.j - clamped_extrema.min.j)
         .min(tgt_extrema.max.jy - tgt_extrema.min.jy)
         .max(0.0);
 
@@ -118,11 +118,11 @@ fn compute_offsets_and_scales<SP: Projection, TP: Projection>(
         .min(clamped_extrema.max.j as i32 - offsets.j as i32 + kernel_radius.j as i32)
         .max(0) as u32;
 
-    let src_x_extra_size = src_x_size as f64 - src_x_size_raw;
-    let src_y_extra_size = src_y_size as f64 - src_y_size_raw;
+    let src_x_extra_size = f64::from(src_x_size) - src_x_size_raw;
+    let src_y_extra_size = f64::from(src_y_size) - src_y_size_raw;
 
-    let x_scale = target_bounds.shape.i as f64 / (src_x_size as f64 - src_x_extra_size);
-    let y_scale = target_bounds.shape.j as f64 / (src_y_size as f64 - src_y_extra_size);
+    let x_scale = f64::from(target_bounds.shape.i) / (f64::from(src_x_size) - src_x_extra_size);
+    let y_scale = f64::from(target_bounds.shape.j) / (f64::from(src_y_size) - src_y_extra_size);
 
     (
         IJPair {

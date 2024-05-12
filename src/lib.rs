@@ -6,6 +6,7 @@
 #![allow(clippy::cast_possible_wrap)]
 #![allow(clippy::cast_sign_loss)]
 #![allow(clippy::cast_precision_loss)]
+#![allow(clippy::excessive_precision)]
 
 mod filters;
 mod helpers;

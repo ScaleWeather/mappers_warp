@@ -72,17 +72,17 @@ pub(crate) fn precompute_internals<F: ResamplingFilter>(
 
         let x_weights = [-1, 0, 1, 2].map(|i| {
             if params.scales.x < 1.0 {
-                F::apply((i as f64 - delta.x) * params.scales.x)
+                F::apply((f64::from(i) - delta.x) * params.scales.x)
             } else {
-                F::apply(i as f64 - delta.x)
+                F::apply(f64::from(i) - delta.x)
             }
         });
 
         let y_weights = [-1, 0, 1, 2].map(|j| {
             if params.scales.y < 1.0 {
-                F::apply((j as f64 - delta.y) * params.scales.y)
+                F::apply((f64::from(j) - delta.y) * params.scales.y)
             } else {
-                F::apply(j as f64 - delta.y)
+                F::apply(f64::from(j) - delta.y)
             }
         });
 
@@ -96,8 +96,8 @@ pub(crate) fn precompute_internals<F: ResamplingFilter>(
 
 #[inline]
 fn compute_deltas(crds: &IXJYPair, params: &WarperParameters) -> GenericXYPair {
-    let src_x = crds.ix - params.offsets.i as f64;
-    let src_y = crds.jy - params.offsets.j as f64;
+    let src_x = crds.ix - f64::from(params.offsets.i);
+    let src_y = crds.jy - f64::from(params.offsets.j);
 
     let delta_x = src_x - 0.5 - (src_x - 0.5).floor();
     let delta_y = src_y - 0.5 - (src_y - 0.5).floor();
