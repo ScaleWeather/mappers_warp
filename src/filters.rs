@@ -61,3 +61,19 @@ impl ResamplingFilter for MitchellNetravali {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use float_cmp::assert_approx_eq;
+
+    use crate::{CubicBSpline, ResamplingFilter};
+
+    #[test]
+    fn bspline_filter() {
+        assert_approx_eq!(f64, CubicBSpline::apply(1.675), 0.0343281, epsilon = 1e-5);
+        assert_approx_eq!(f64, CubicBSpline::apply(1.231), 0.454757, epsilon = 1e-5);
+        assert_approx_eq!(f64, CubicBSpline::apply(0.115), 3.92521, epsilon = 1e-5);
+        assert_approx_eq!(f64, CubicBSpline::apply(-0.243), 3.68875, epsilon = 1e-5);
+        assert_approx_eq!(f64, CubicBSpline::apply(-1.65), 0.042875, epsilon = 1e-5);
+    }
+}
