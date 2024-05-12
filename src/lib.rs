@@ -14,7 +14,7 @@ mod precompute;
 mod warp_params;
 
 use mappers::Projection;
-use ndarray::{s, Array2};
+use ndarray::{s, Array2, FoldWhile, Zip};
 
 #[cfg(feature = "io")]
 use serde::{Deserialize, Serialize};
@@ -31,7 +31,7 @@ use crate::{precompute::precompute_ixs_jys, warp_params::WarperParameters};
 pub use filters::{CubicBSpline, MitchellNetravali, ResamplingFilter};
 #[cfg(feature = "io")]
 pub use helpers::WarperIOError;
-pub use helpers::{GenericXYPair, RasterBounds, WarperError, raster_constant_pad};
+pub use helpers::{raster_constant_pad, GenericXYPair, RasterBounds, WarperError};
 pub(crate) use helpers::{IJPair, IXJYPair, MinMaxPair, SourceXYPair, TargetXYPair};
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
@@ -82,43 +82,56 @@ impl Warper {
             return Err(WarperError::InvalidRasterDimensions);
         }
 
-        let target_raster = self.internals.map(|intr| {
-            let values = source_raster.slice(s![
-                (intr.anchor_idx.1 - 1) as usize..(intr.anchor_idx.1 + 3) as usize,
-                (intr.anchor_idx.0 - 1) as usize..(intr.anchor_idx.0 + 3) as usize
-            ]);
+        let mut target_raster = Array2::from_elem(self.internals.raw_dim(), f64::NEG_INFINITY);
 
-            let mut weight_accum = 0.0;
-            let mut result_accum = 0.0;
+        Zip::from(&mut target_raster)
+            .and(&self.internals)
+            .fold_while(Ok(()), |_, v, intr| {
+                let values = source_raster.slice(s![
+                    (intr.anchor_idx.1 - 1) as usize..(intr.anchor_idx.1 + 3) as usize,
+                    (intr.anchor_idx.0 - 1) as usize..(intr.anchor_idx.0 + 3) as usize
+                ]);
 
-            for j in 0..4 {
-                let mut inner_weight_accum = 0.0;
-                let mut inner_result_accum = 0.0;
+                let mut weight_accum = 0.0;
+                let mut result_accum = 0.0;
 
-                for i in 0..4 {
-                    let value = values[[j, i]];
-                    let x_weight = intr.x_weights[i];
+                for j in 0..4 {
+                    let mut inner_weight_accum = 0.0;
+                    let mut inner_result_accum = 0.0;
 
-                    inner_weight_accum += x_weight;
-                    inner_result_accum += x_weight * value;
+                    for i in 0..4 {
+                        let value = values[[j, i]];
+                        let x_weight = if value.is_nan() {
+                            0.0
+                        } else {
+                            intr.x_weights[i]
+                        };
+
+                        inner_weight_accum += x_weight;
+                        inner_result_accum += x_weight * value;
+                    }
+
+                    let y_weight = intr.y_weights[j];
+
+                    weight_accum += inner_weight_accum * y_weight;
+                    result_accum += inner_result_accum * y_weight;
                 }
 
-                let y_weight = intr.y_weights[j];
+                if weight_accum - 0.0 < f64::EPSILON {
+                    *v = f64::NAN;
+                    return FoldWhile::Done(Ok(()));
+                }
 
-                weight_accum += inner_weight_accum * y_weight;
-                result_accum += inner_result_accum * y_weight;
-            }
+                let result = result_accum / weight_accum;
 
-            result_accum / weight_accum
-        });
-
-        target_raster.fold(Ok(()), |_, &v| -> Result<(), WarperError> {
-            if !v.is_finite() {
-                return Err(WarperError::WarpingError);
-            }
-
-            Ok(())
-        })?;
+                if result.is_finite() {
+                    *v = result;
+                    FoldWhile::Continue(Ok(()))
+                } else {
+                    FoldWhile::Done(Err(WarperError::WarpingError))
+                }
+            })
+            .into_inner()?;
 
         Ok(target_raster)
     }
@@ -165,8 +178,13 @@ pub mod tests {
         RasterBounds<LambertConformalConic, GenericXYPair>,
     )> {
         let source_projection = LongitudeLatitude;
-        let target_projections =
-            LambertConformalConic::new(80., 24., 12.472_955, 35.172_804_444_444_4, Ellipsoid::WGS84)?;
+        let target_projections = LambertConformalConic::new(
+            80.,
+            24.,
+            12.472_955,
+            35.172_804_444_444_4,
+            Ellipsoid::WGS84,
+        )?;
 
         let source_bounds =
             RasterBounds::new((60.00, 67.75), (32.25, 40.0), 0.25, 0.25, source_projection)?;
