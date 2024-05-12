@@ -157,11 +157,11 @@ impl Warper {
         })
     }
 
-    // From GdalWarp: for bilinear, cubic, cubicspline and lanczos, for each target pixel, the coordinate of its center 
-    // is projected back to source coordinates and a corresponding source pixel is identified. If this source pixel is invalid, 
-    // the target pixel is considered as nodata. Given that those resampling kernels have a non-null kernel radius, 
-    // this source pixel is just one among other several source pixels, and it might be possible that there are invalid 
-    // values in those other contributing source pixels. The weights used to take into account those invalid values 
+    // From GdalWarp: for bilinear, cubic, cubicspline and lanczos, for each target pixel, the coordinate of its center
+    // is projected back to source coordinates and a corresponding source pixel is identified. If this source pixel is invalid,
+    // the target pixel is considered as nodata. Given that those resampling kernels have a non-null kernel radius,
+    // this source pixel is just one among other several source pixels, and it might be possible that there are invalid
+    // values in those other contributing source pixels. The weights used to take into account those invalid values
     // will be set to zero to ignore them.
     pub fn warp(&self, lonlat_raster: &Array2<f64>) -> Result<Array2<f64>, WarperError> {
         if lonlat_raster.shape()[0] != self.source_shape[0] as usize
@@ -237,7 +237,7 @@ impl Warper {
 #[cfg(test)]
 pub mod tests {
     #[cfg(feature = "io")]
-    use crate::Warper;
+    use crate::{filters::CubicBSpline, Warper};
     use anyhow::Result;
     use mappers::{
         projections::{LambertConformalConic, LongitudeLatitude},
@@ -273,11 +273,10 @@ pub mod tests {
     #[cfg(feature = "io")]
     #[test]
     fn io() -> Result<()> {
-        let (src_bounds, tgt_bounds, proj) = reference_setup()?;
+        let (src_bounds, tgt_bounds) = reference_setup()?;
         let warper = Warper::initialize::<CubicBSpline, LongitudeLatitude, LambertConformalConic>(
             &src_bounds,
             &tgt_bounds,
-            &proj,
         )?;
 
         warper.save_to_file("./tests/data/saved-warper.dat")?;

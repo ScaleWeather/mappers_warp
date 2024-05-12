@@ -24,6 +24,8 @@ pub(crate) fn precompute_ixs_jys<SP: Projection, TP: Projection>(
         y: 1.0 / source_bounds.spacing.y,
     };
 
+    let proj_pipe = &target_bounds.proj.pipe_to(&source_bounds.proj);
+
     let precomputed_coords = Array2::from_shape_fn(
         (
             target_bounds.shape.j as usize,
@@ -34,7 +36,7 @@ pub(crate) fn precompute_ixs_jys<SP: Projection, TP: Projection>(
             let tgt_x = tgt_ul_edge_corner.x + ((i as f64 + 0.5) * target_bounds.spacing.x);
             let tgt_y = tgt_ul_edge_corner.y - ((j as f64 + 0.5) * target_bounds.spacing.y);
 
-            let (tgt_lon, tgt_lat) = target_bounds.proj.inverse_project_unchecked(tgt_x, tgt_y);
+            let (tgt_lon, tgt_lat) = proj_pipe.convert_unchecked(tgt_x, tgt_y);
 
             let result = IXJYPair {
                 ix: (tgt_lon - src_ul_edge_corner.lon) * conversion_scaling.x,

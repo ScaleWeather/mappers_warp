@@ -1,4 +1,4 @@
-use mappers::Projection;
+use mappers::{ConversionPipe, Projection};
 use ndarray::{concatenate, stack, Array, Axis};
 
 use crate::{
@@ -42,7 +42,8 @@ fn compute_target_outer_extrema<SP: Projection, TP: Projection>(
     source_bounds: &RasterBounds<SP>,
     target_bounds: &RasterBounds<TP>,
 ) -> Result<MinMaxPair<IXJYPair>, WarperError> {
-    let tgt_extr = get_target_extrema_lonlat(target_bounds)?;
+    let proj_pipe = &target_bounds.proj.pipe_to(&source_bounds.proj);
+    let tgt_extr = get_target_extrema_lonlat(target_bounds, proj_pipe)?;
 
     // Shift here is because extrema are computed at edges
     let min_x_out = ((tgt_extr.min.lon - source_bounds.min.x) / source_bounds.spacing.x) + 0.5;
@@ -156,8 +157,9 @@ fn compute_src_offsets(
     })
 }
 
-fn get_target_extrema_lonlat<TP: Projection>(
+fn get_target_extrema_lonlat<SP: Projection, TP: Projection>(
     target_bounds: &RasterBounds<TP>,
+    proj_pipe: &ConversionPipe<TP, SP>,
 ) -> Result<MinMaxPair<LonLatPair>, WarperError> {
     let x_min = target_bounds.min.x - (0.5 * target_bounds.spacing.x);
     let x_max = target_bounds.max.x + (0.5 * target_bounds.spacing.x);
@@ -201,7 +203,7 @@ fn get_target_extrema_lonlat<TP: Projection>(
         .rows()
         .into_iter()
         .try_for_each(|xy| -> Result<(), WarperError> {
-            let (lon, lat) = target_bounds.proj.inverse_project(xy[0], xy[1])?;
+            let (lon, lat) = proj_pipe.convert(xy[0], xy[1])?;
 
             min_lon = min_lon.min(lon);
             max_lon = max_lon.max(lon);
