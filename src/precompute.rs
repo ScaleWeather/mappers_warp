@@ -2,28 +2,29 @@ use mappers::Projection;
 use ndarray::Array2;
 
 use crate::{
-    warp_params::WarperParameters, IXJYPair, LonLatPair, RasterBounds, ResamplingFilter,
-    ResamplingKernelInternals, WarperError, XYPair,
+    helpers::GenericXYPair, warp_params::WarperParameters, IXJYPair, RasterBounds,
+    ResamplingFilter, ResamplingKernelInternals, SourceXYPair, TargetXYPair, WarperError,
 };
 
-pub(crate) fn precompute_ixs_jys(
-    source_bounds: &RasterBounds,
-    target_bounds: &RasterBounds,
-    proj: &impl Projection,
+pub(crate) fn precompute_ixs_jys<SP: Projection, TP: Projection>(
+    source_bounds: &RasterBounds<SP, SourceXYPair>,
+    target_bounds: &RasterBounds<TP, TargetXYPair>,
 ) -> Result<Array2<IXJYPair>, WarperError> {
-    let tgt_ul_edge_corner = XYPair {
+    let tgt_ul_edge_corner = SourceXYPair {
         x: target_bounds.min.x - (0.5 * target_bounds.spacing.x),
         y: target_bounds.max.y + (0.5 * target_bounds.spacing.y),
     };
-    let src_ul_edge_corner = LonLatPair {
-        lon: source_bounds.min.x - (0.5 * source_bounds.spacing.x),
-        lat: source_bounds.max.y + (0.5 * source_bounds.spacing.y),
+    let src_ul_edge_corner = SourceXYPair {
+        x: source_bounds.min.x - (0.5 * source_bounds.spacing.x),
+        y: source_bounds.max.y + (0.5 * source_bounds.spacing.y),
     };
 
-    let conversion_scaling = XYPair {
+    let conversion_scaling = GenericXYPair {
         x: 1.0 / source_bounds.spacing.x,
         y: 1.0 / source_bounds.spacing.y,
     };
+
+    let proj_pipe = &target_bounds.proj.pipe_to(&source_bounds.proj);
 
     let precomputed_coords = Array2::from_shape_fn(
         (
@@ -35,14 +36,12 @@ pub(crate) fn precompute_ixs_jys(
             let tgt_x = tgt_ul_edge_corner.x + ((i as f64 + 0.5) * target_bounds.spacing.x);
             let tgt_y = tgt_ul_edge_corner.y - ((j as f64 + 0.5) * target_bounds.spacing.y);
 
-            let (tgt_lon, tgt_lat) = proj.inverse_project_unchecked(tgt_x, tgt_y);
+            let (src_x, src_y) = proj_pipe.convert_unchecked(tgt_x, tgt_y);
 
-            let result = IXJYPair {
-                ix: (tgt_lon - src_ul_edge_corner.lon) * conversion_scaling.x,
-                jy: (src_ul_edge_corner.lat - tgt_lat) * conversion_scaling.y,
-            };
-
-            result
+            IXJYPair {
+                ix: (src_x - src_ul_edge_corner.x) * conversion_scaling.x,
+                jy: (src_ul_edge_corner.y - src_y) * conversion_scaling.y,
+            }
         },
     );
 
@@ -60,10 +59,10 @@ pub(crate) fn precompute_ixs_jys(
 pub(crate) fn precompute_internals<F: ResamplingFilter>(
     tgt_ixs_jys: &Array2<IXJYPair>,
     params: &WarperParameters,
-) -> Result<Array2<ResamplingKernelInternals>, WarperError> {
+) -> Array2<ResamplingKernelInternals> {
     // 0.5 shift because we want to get nearest midpoint
     // but ixs, yjs are measured from the edge corner
-    let internals = tgt_ixs_jys.map(|&crds| {
+    tgt_ixs_jys.map(|&crds| {
         let anchor_idx = (
             (crds.ix - 0.5).floor() as u32,
             (crds.jy - 0.5).floor() as u32,
@@ -73,17 +72,17 @@ pub(crate) fn precompute_internals<F: ResamplingFilter>(
 
         let x_weights = [-1, 0, 1, 2].map(|i| {
             if params.scales.x < 1.0 {
-                F::apply((i as f64 - delta.x) * params.scales.x)
+                F::apply((f64::from(i) - delta.x) * params.scales.x)
             } else {
-                F::apply(i as f64 - delta.x)
+                F::apply(f64::from(i) - delta.x)
             }
         });
 
         let y_weights = [-1, 0, 1, 2].map(|j| {
             if params.scales.y < 1.0 {
-                F::apply((j as f64 - delta.y) * params.scales.y)
+                F::apply((f64::from(j) - delta.y) * params.scales.y)
             } else {
-                F::apply(j as f64 - delta.y)
+                F::apply(f64::from(j) - delta.y)
             }
         });
 
@@ -92,20 +91,18 @@ pub(crate) fn precompute_internals<F: ResamplingFilter>(
             x_weights,
             y_weights,
         }
-    });
-
-    Ok(internals)
+    })
 }
 
-#[inline(always)]
-fn compute_deltas(crds: &IXJYPair, params: &WarperParameters) -> XYPair {
-    let src_x = crds.ix - params.offsets.i as f64;
-    let src_y = crds.jy - params.offsets.j as f64;
+#[inline]
+fn compute_deltas(crds: &IXJYPair, params: &WarperParameters) -> GenericXYPair {
+    let src_x = crds.ix - f64::from(params.offsets.i);
+    let src_y = crds.jy - f64::from(params.offsets.j);
 
     let delta_x = src_x - 0.5 - (src_x - 0.5).floor();
     let delta_y = src_y - 0.5 - (src_y - 0.5).floor();
 
-    XYPair {
+    GenericXYPair {
         x: delta_x,
         y: delta_y,
     }
@@ -115,53 +112,78 @@ fn compute_deltas(crds: &IXJYPair, params: &WarperParameters) -> XYPair {
 mod tests {
     use anyhow::Result;
     use float_cmp::assert_approx_eq;
+    use mappers::projections::{LambertConformalConic, LongitudeLatitude};
 
     use crate::{
-        tests::reference_setup, warp_params::WarperParameters, CubicBSpline, IXJYPair, Warper,
+        tests::reference_setup, warp_params::WarperParameters, CubicBSpline, IXJYPair,
+        SourceXYPair, TargetXYPair, Warper,
     };
 
     use super::precompute_ixs_jys;
 
     #[test]
     fn ix_jy() -> Result<()> {
-        let (src_bounds, tgt_bounds, proj) = reference_setup()?;
+        let (src_bounds, tgt_bounds) = reference_setup()?;
 
-        let ixs_jys = precompute_ixs_jys(&src_bounds, &tgt_bounds, &proj)?;
+        let src_bounds = src_bounds.cast_xy_pairs::<SourceXYPair>();
+        let tgt_bounds = tgt_bounds.cast_xy_pairs::<TargetXYPair>();
 
-        assert_approx_eq!(f64, ixs_jys[[0, 0]].ix, 4.7102160316373727, epsilon = 1e-6);
-        assert_approx_eq!(f64, ixs_jys[[0, 0]].jy, 8.8887293250701873, epsilon = 1e-6);
+        let ixs_jys = precompute_ixs_jys(&src_bounds, &tgt_bounds)?;
+
+        assert_approx_eq!(
+            f64,
+            ixs_jys[[0, 0]].ix,
+            4.710_216_031_637_372_7,
+            epsilon = 1e-6
+        );
+        assert_approx_eq!(
+            f64,
+            ixs_jys[[0, 0]].jy,
+            8.888_729_325_070_187_3,
+            epsilon = 1e-6
+        );
 
         Ok(())
     }
 
     #[test]
     fn delta() -> Result<()> {
-        let (src_bounds, tgt_bounds, proj) = reference_setup()?;
+        let (src_bounds, tgt_bounds) = reference_setup()?;
 
-        let params = WarperParameters::compute::<CubicBSpline>(&src_bounds, &tgt_bounds, &proj)?;
+        let src_bounds = src_bounds.cast_xy_pairs::<SourceXYPair>();
+        let tgt_bounds = tgt_bounds.cast_xy_pairs::<TargetXYPair>();
+
+        let params = WarperParameters::compute::<
+            CubicBSpline,
+            LongitudeLatitude,
+            LambertConformalConic,
+        >(&src_bounds, &tgt_bounds)?;
 
         let crds = IXJYPair {
-            ix: 4.7102160316373727,
-            jy: 8.8887293250701873,
+            ix: 4.710_216_031_637_372_7,
+            jy: 8.888_729_325_070_187_3,
         };
 
         let delta = super::compute_deltas(&crds, &params);
 
-        assert_approx_eq!(f64, delta.x, 0.21021603163737268, epsilon = 1e-6);
-        assert_approx_eq!(f64, delta.y, 0.38872932507018731, epsilon = 1e-6);
+        assert_approx_eq!(f64, delta.x, 0.210_216_031_637_372_68, epsilon = 1e-6);
+        assert_approx_eq!(f64, delta.y, 0.388_729_325_070_187_31, epsilon = 1e-6);
 
         Ok(())
     }
 
     #[test]
     fn internals() -> Result<()> {
-        let (src_bounds, tgt_bounds, proj) = reference_setup()?;
+        let (src_bounds, tgt_bounds) = reference_setup()?;
 
-        let warper = Warper::initialize::<CubicBSpline>(&src_bounds, &tgt_bounds, &proj)?;
+        let warper = Warper::initialize::<CubicBSpline, LongitudeLatitude, LambertConformalConic>(
+            &src_bounds,
+            &tgt_bounds,
+        )?;
 
         assert_eq!(warper.internals[[0, 0]].anchor_idx, (4, 8));
 
-        for intr in warper.internals.iter() {
+        for intr in &warper.internals {
             let x_weights_sum = intr.x_weights.iter().sum::<f64>();
             let y_weights_sum = intr.y_weights.iter().sum::<f64>();
 

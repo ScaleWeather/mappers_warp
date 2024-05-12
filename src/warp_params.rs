@@ -1,56 +1,56 @@
-use mappers::Projection;
+use mappers::{ConversionPipe, Projection};
 use ndarray::{concatenate, stack, Array, Axis};
 
 use crate::{
-    IJPair, IXJYPair, LonLatPair, MinMaxPair, RasterBounds, ResamplingFilter, WarperError, XYPair,
+    GenericXYPair, IJPair, IXJYPair, MinMaxPair, RasterBounds, ResamplingFilter, SourceXYPair,
+    TargetXYPair, WarperError,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub(super) struct WarperParameters {
-    pub scales: XYPair,
+    pub scales: GenericXYPair,
     pub offsets: IJPair,
 }
 
 impl WarperParameters {
-    pub fn compute<F: ResamplingFilter>(
-        source_bounds: &RasterBounds,
-        target_bounds: &RasterBounds,
-        proj: &impl Projection,
+    pub fn compute<F: ResamplingFilter, SP: Projection, TP: Projection>(
+        source_bounds: &RasterBounds<SP, SourceXYPair>,
+        target_bounds: &RasterBounds<TP, TargetXYPair>,
     ) -> Result<Self, WarperError> {
         let wrap_margin = F::X_RADIUS.max(F::Y_RADIUS) as u32;
 
-        let tgt_extrema = compute_target_outer_extrema(source_bounds, target_bounds, proj)?;
+        let tgt_extrema = compute_target_outer_extrema(source_bounds, target_bounds)?;
 
         let clamped_extrema =
-            compute_clamped_extrema(&tgt_extrema, &source_bounds.shape, wrap_margin)?;
+            compute_clamped_extrema(&tgt_extrema, source_bounds.shape, wrap_margin)?;
 
         let (offsets, scales) = compute_offsets_and_scales(
             &tgt_extrema,
             &clamped_extrema,
-            target_bounds,
             source_bounds,
-            &IJPair {
+            target_bounds,
+            IJPair {
                 i: F::X_RADIUS as u32,
                 j: F::Y_RADIUS as u32,
             },
-        )?;
+        );
 
         Ok(WarperParameters { scales, offsets })
     }
 }
 
-fn compute_target_outer_extrema(
-    source_bounds: &RasterBounds,
-    target_bounds: &RasterBounds,
-    proj: &impl Projection,
+fn compute_target_outer_extrema<SP: Projection, TP: Projection>(
+    source_bounds: &RasterBounds<SP, SourceXYPair>,
+    target_bounds: &RasterBounds<TP, TargetXYPair>,
 ) -> Result<MinMaxPair<IXJYPair>, WarperError> {
-    let tgt_extr = get_target_extrema_lonlat(target_bounds, proj)?;
+    let proj_pipe = &target_bounds.proj.pipe_to(&source_bounds.proj);
+    let tgt_extr = get_target_extrema_on_source(target_bounds, proj_pipe)?;
 
     // Shift here is because extrema are computed at edges
-    let min_x_out = ((tgt_extr.min.lon - source_bounds.min.x) / source_bounds.spacing.x) + 0.5;
-    let max_x_out = ((tgt_extr.max.lon - source_bounds.min.x) / source_bounds.spacing.x) + 0.5;
-    let max_y_out = ((source_bounds.max.y - tgt_extr.min.lat) / source_bounds.spacing.y) + 0.5;
-    let min_y_out = ((source_bounds.max.y - tgt_extr.max.lat) / source_bounds.spacing.y) + 0.5;
+    let min_x_out = ((tgt_extr.min.x - source_bounds.min.x) / source_bounds.spacing.x) + 0.5;
+    let max_x_out = ((tgt_extr.max.x - source_bounds.min.x) / source_bounds.spacing.x) + 0.5;
+    let max_y_out = ((source_bounds.max.y - tgt_extr.min.y) / source_bounds.spacing.y) + 0.5;
+    let min_y_out = ((source_bounds.max.y - tgt_extr.max.y) / source_bounds.spacing.y) + 0.5;
 
     Ok(MinMaxPair {
         min: IXJYPair {
@@ -66,13 +66,13 @@ fn compute_target_outer_extrema(
 
 fn compute_clamped_extrema(
     tgt_extr: &MinMaxPair<IXJYPair>,
-    src_shape: &IJPair,
+    src_shape: IJPair,
     min_margin: u32,
 ) -> Result<MinMaxPair<IJPair>, WarperError> {
-    if tgt_extr.min.ix < min_margin as f64
-        || tgt_extr.min.jy < min_margin as f64
-        || tgt_extr.max.ix > (src_shape.i - min_margin) as f64
-        || tgt_extr.max.jy > (src_shape.j - min_margin) as f64
+    if tgt_extr.min.ix < f64::from(min_margin)
+        || tgt_extr.min.jy < f64::from(min_margin)
+        || tgt_extr.max.ix > f64::from(src_shape.i - min_margin)
+        || tgt_extr.max.jy > f64::from(src_shape.j - min_margin)
     {
         return Err(WarperError::SourceRasterTooSmall);
     }
@@ -95,19 +95,19 @@ fn compute_clamped_extrema(
     })
 }
 
-fn compute_offsets_and_scales(
+fn compute_offsets_and_scales<SP: Projection, TP: Projection>(
     tgt_extrema: &MinMaxPair<IXJYPair>,
     clamped_extrema: &MinMaxPair<IJPair>,
-    target_bounds: &RasterBounds,
-    source_bounds: &RasterBounds,
-    kernel_radius: &IJPair,
-) -> Result<(IJPair, XYPair), WarperError> {
-    let offsets = compute_src_offsets(&clamped_extrema.min, &source_bounds.shape, kernel_radius)?;
+    source_bounds: &RasterBounds<SP, SourceXYPair>,
+    target_bounds: &RasterBounds<TP, TargetXYPair>,
+    kernel_radius: IJPair,
+) -> (IJPair, GenericXYPair) {
+    let offsets = compute_src_offsets(clamped_extrema.min, source_bounds.shape, kernel_radius);
 
-    let src_x_size_raw = ((source_bounds.shape.i - clamped_extrema.min.i) as f64)
+    let src_x_size_raw = f64::from(source_bounds.shape.i - clamped_extrema.min.i)
         .min(tgt_extrema.max.ix - tgt_extrema.min.ix)
         .max(0.0);
-    let src_y_size_raw = ((source_bounds.shape.j - clamped_extrema.min.j) as f64)
+    let src_y_size_raw = f64::from(source_bounds.shape.j - clamped_extrema.min.j)
         .min(tgt_extrema.max.jy - tgt_extrema.min.jy)
         .max(0.0);
 
@@ -118,29 +118,25 @@ fn compute_offsets_and_scales(
         .min(clamped_extrema.max.j as i32 - offsets.j as i32 + kernel_radius.j as i32)
         .max(0) as u32;
 
-    let src_x_extra_size = src_x_size as f64 - src_x_size_raw;
-    let src_y_extra_size = src_y_size as f64 - src_y_size_raw;
+    let src_x_extra_size = f64::from(src_x_size) - src_x_size_raw;
+    let src_y_extra_size = f64::from(src_y_size) - src_y_size_raw;
 
-    let x_scale = target_bounds.shape.i as f64 / (src_x_size as f64 - src_x_extra_size);
-    let y_scale = target_bounds.shape.j as f64 / (src_y_size as f64 - src_y_extra_size);
+    let x_scale = f64::from(target_bounds.shape.i) / (f64::from(src_x_size) - src_x_extra_size);
+    let y_scale = f64::from(target_bounds.shape.j) / (f64::from(src_y_size) - src_y_extra_size);
 
-    Ok((
+    (
         IJPair {
             i: offsets.i,
             j: offsets.j,
         },
-        XYPair {
+        GenericXYPair {
             x: x_scale,
             y: y_scale,
         },
-    ))
+    )
 }
 
-fn compute_src_offsets(
-    clamped_min: &IJPair,
-    src_shape: &IJPair,
-    kernel_radius: &IJPair,
-) -> Result<IJPair, WarperError> {
+fn compute_src_offsets(clamped_min: IJPair, src_shape: IJPair, kernel_radius: IJPair) -> IJPair {
     let n_src_x_off = clamped_min
         .i
         .saturating_sub(kernel_radius.i)
@@ -152,16 +148,16 @@ fn compute_src_offsets(
         .min(src_shape.j)
         .max(0);
 
-    Ok(IJPair {
+    IJPair {
         i: n_src_x_off,
         j: n_src_y_off,
-    })
+    }
 }
 
-fn get_target_extrema_lonlat(
-    target_bounds: &RasterBounds,
-    proj: &impl Projection,
-) -> Result<MinMaxPair<LonLatPair>, WarperError> {
+fn get_target_extrema_on_source<SP: Projection, TP: Projection>(
+    target_bounds: &RasterBounds<TP, TargetXYPair>,
+    proj_pipe: &ConversionPipe<TP, SP>,
+) -> Result<MinMaxPair<SourceXYPair>, WarperError> {
     let x_min = target_bounds.min.x - (0.5 * target_bounds.spacing.x);
     let x_max = target_bounds.max.x + (0.5 * target_bounds.spacing.x);
     let y_min = target_bounds.min.y - (0.5 * target_bounds.spacing.y);
@@ -194,35 +190,35 @@ fn get_target_extrema_lonlat(
         ],
     )?;
 
-    let mut min_lon = f64::INFINITY;
-    let mut max_lon = f64::NEG_INFINITY;
+    let mut min_src_x = f64::INFINITY;
+    let mut max_src_x = f64::NEG_INFINITY;
 
-    let mut min_lat = f64::INFINITY;
-    let mut max_lat = f64::NEG_INFINITY;
+    let mut min_src_y = f64::INFINITY;
+    let mut max_src_y = f64::NEG_INFINITY;
 
     edges_xy
         .rows()
         .into_iter()
         .try_for_each(|xy| -> Result<(), WarperError> {
-            let (lon, lat) = proj.inverse_project(xy[0], xy[1])?;
+            let (src_x, src_y) = proj_pipe.convert(xy[0], xy[1])?;
 
-            min_lon = min_lon.min(lon);
-            max_lon = max_lon.max(lon);
+            min_src_x = min_src_x.min(src_x);
+            max_src_x = max_src_x.max(src_x);
 
-            min_lat = min_lat.min(lat);
-            max_lat = max_lat.max(lat);
+            min_src_y = min_src_y.min(src_y);
+            max_src_y = max_src_y.max(src_y);
 
             Ok(())
         })?;
 
     Ok(MinMaxPair {
-        min: LonLatPair {
-            lon: min_lon,
-            lat: min_lat,
+        min: SourceXYPair {
+            x: min_src_x,
+            y: min_src_y,
         },
-        max: LonLatPair {
-            lon: max_lon,
-            lat: max_lat,
+        max: SourceXYPair {
+            x: max_src_x,
+            y: max_src_y,
         },
     })
 }
@@ -235,21 +231,24 @@ mod tests {
     use super::{compute_clamped_extrema, compute_target_outer_extrema};
     use crate::{
         tests::reference_setup, warp_params::compute_offsets_and_scales, CubicBSpline, IJPair,
-        ResamplingFilter,
+        ResamplingFilter, SourceXYPair, TargetXYPair,
     };
 
     #[test]
     fn assert_with_sample_values() -> Result<()> {
-        let (source_bounds, target_bounds, proj) = reference_setup()?;
+        let (source_bounds, target_bounds) = reference_setup()?;
 
-        let extrema = compute_target_outer_extrema(&source_bounds, &target_bounds, &proj).unwrap();
+        let source_bounds = source_bounds.cast_xy_pairs::<SourceXYPair>();
+        let target_bounds = target_bounds.cast_xy_pairs::<TargetXYPair>();
 
-        assert_approx_eq!(f64, extrema.min.ix, 4.457122955747991, epsilon = 1e-6);
-        assert_approx_eq!(f64, extrema.min.jy, 6.9363298550977959, epsilon = 1e-6);
-        assert_approx_eq!(f64, extrema.max.ix, 26.145584743939651, epsilon = 1e-6);
-        assert_approx_eq!(f64, extrema.max.jy, 28.72260733112293, epsilon = 1e-6);
+        let extrema = compute_target_outer_extrema(&source_bounds, &target_bounds).unwrap();
 
-        let clamped_extrema = compute_clamped_extrema(&extrema, &source_bounds.shape, 1)?;
+        assert_approx_eq!(f64, extrema.min.ix, 4.457_122_955_747_991, epsilon = 1e-6);
+        assert_approx_eq!(f64, extrema.min.jy, 6.936_329_855_097_795_9, epsilon = 1e-6);
+        assert_approx_eq!(f64, extrema.max.ix, 26.145_584_743_939_651, epsilon = 1e-6);
+        assert_approx_eq!(f64, extrema.max.jy, 28.722_607_331_122_93, epsilon = 1e-6);
+
+        let clamped_extrema = compute_clamped_extrema(&extrema, source_bounds.shape, 1)?;
 
         assert_eq!(clamped_extrema.min.i, 4);
         assert_eq!(clamped_extrema.min.j, 6);
@@ -259,19 +258,18 @@ mod tests {
         let (offsets, scales) = compute_offsets_and_scales(
             &extrema,
             &clamped_extrema,
-            &target_bounds,
             &source_bounds,
-            &IJPair {
+            &target_bounds,
+            IJPair {
                 i: CubicBSpline::X_RADIUS as u32,
                 j: CubicBSpline::Y_RADIUS as u32,
             },
-        )
-        .unwrap();
+        );
 
         assert_eq!(offsets.i, 2);
         assert_eq!(offsets.j, 4);
-        assert_approx_eq!(f64, scales.x, 1.9826210092691527, epsilon = 1e-6);
-        assert_approx_eq!(f64, scales.y, 2.5704253542912783, epsilon = 1e-6);
+        assert_approx_eq!(f64, scales.x, 1.982_621_009_269_152_7, epsilon = 1e-6);
+        assert_approx_eq!(f64, scales.y, 2.570_425_354_291_278_3, epsilon = 1e-6);
 
         Ok(())
     }
