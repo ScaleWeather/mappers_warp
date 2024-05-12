@@ -2,15 +2,15 @@ use mappers::Projection;
 use ndarray::Array2;
 
 use crate::{
-    warp_params::WarperParameters, IXJYPair, LonLatPair, RasterBounds, ResamplingFilter,
-    ResamplingKernelInternals, WarperError, XYPair,
+    helpers::GenericXYPair, warp_params::WarperParameters, IXJYPair, LonLatPair, RasterBounds,
+    ResamplingFilter, ResamplingKernelInternals, SourceXYPair, TargetXYPair, WarperError,
 };
 
 pub(crate) fn precompute_ixs_jys<SP: Projection, TP: Projection>(
-    source_bounds: &RasterBounds<SP>,
-    target_bounds: &RasterBounds<TP>,
+    source_bounds: &RasterBounds<SP, SourceXYPair>,
+    target_bounds: &RasterBounds<TP, TargetXYPair>,
 ) -> Result<Array2<IXJYPair>, WarperError> {
-    let tgt_ul_edge_corner = XYPair {
+    let tgt_ul_edge_corner = SourceXYPair {
         x: target_bounds.min.x - (0.5 * target_bounds.spacing.x),
         y: target_bounds.max.y + (0.5 * target_bounds.spacing.y),
     };
@@ -19,7 +19,7 @@ pub(crate) fn precompute_ixs_jys<SP: Projection, TP: Projection>(
         lat: source_bounds.max.y + (0.5 * source_bounds.spacing.y),
     };
 
-    let conversion_scaling = XYPair {
+    let conversion_scaling = GenericXYPair {
         x: 1.0 / source_bounds.spacing.x,
         y: 1.0 / source_bounds.spacing.y,
     };
@@ -99,14 +99,14 @@ pub(crate) fn precompute_internals<F: ResamplingFilter>(
 }
 
 #[inline(always)]
-fn compute_deltas(crds: &IXJYPair, params: &WarperParameters) -> XYPair {
+fn compute_deltas(crds: &IXJYPair, params: &WarperParameters) -> GenericXYPair {
     let src_x = crds.ix - params.offsets.i as f64;
     let src_y = crds.jy - params.offsets.j as f64;
 
     let delta_x = src_x - 0.5 - (src_x - 0.5).floor();
     let delta_y = src_y - 0.5 - (src_y - 0.5).floor();
 
-    XYPair {
+    GenericXYPair {
         x: delta_x,
         y: delta_y,
     }
@@ -119,7 +119,8 @@ mod tests {
     use mappers::projections::{LambertConformalConic, LongitudeLatitude};
 
     use crate::{
-        tests::reference_setup, warp_params::WarperParameters, CubicBSpline, IXJYPair, Warper,
+        tests::reference_setup, warp_params::WarperParameters, CubicBSpline, IXJYPair,
+        SourceXYPair, TargetXYPair, Warper,
     };
 
     use super::precompute_ixs_jys;
@@ -127,6 +128,9 @@ mod tests {
     #[test]
     fn ix_jy() -> Result<()> {
         let (src_bounds, tgt_bounds) = reference_setup()?;
+
+        let src_bounds = src_bounds.cast_xy_pairs::<SourceXYPair>();
+        let tgt_bounds = tgt_bounds.cast_xy_pairs::<TargetXYPair>();
 
         let ixs_jys = precompute_ixs_jys(&src_bounds, &tgt_bounds)?;
 
@@ -139,6 +143,9 @@ mod tests {
     #[test]
     fn delta() -> Result<()> {
         let (src_bounds, tgt_bounds) = reference_setup()?;
+
+        let src_bounds = src_bounds.cast_xy_pairs::<SourceXYPair>();
+        let tgt_bounds = tgt_bounds.cast_xy_pairs::<TargetXYPair>();
 
         let params = WarperParameters::compute::<
             CubicBSpline,

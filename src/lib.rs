@@ -19,12 +19,10 @@ use std::path::Path;
 use crate::{precompute::precompute_ixs_jys, warp_params::WarperParameters};
 
 pub use filters::{CubicBSpline, MitchellNetravali, ResamplingFilter};
-pub(crate) use helpers::{
-    IJPair, IXJYPair, LonLatPair, MinMaxPair, RasterCoord, SrcCoord, TgtCoord, XYPair,
-};
-pub use helpers::{RasterBounds, WarperError};
 #[cfg(feature = "io")]
 pub use helpers::WarperIOError;
+pub use helpers::{GenericXYPair, RasterBounds, WarperError, XYPair};
+pub(crate) use helpers::{IJPair, IXJYPair, LonLatPair, MinMaxPair, SourceXYPair, TargetXYPair};
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "io", derive(Serialize, Deserialize))]
@@ -44,9 +42,12 @@ pub struct Warper {
 
 impl Warper {
     pub fn initialize<F: ResamplingFilter, SP: Projection, TP: Projection>(
-        source_bounds: &RasterBounds<SP>,
-        target_bounds: &RasterBounds<TP>,
+        source_bounds: &RasterBounds<SP, GenericXYPair>,
+        target_bounds: &RasterBounds<TP, GenericXYPair>,
     ) -> Result<Self, WarperError> {
+        let source_bounds = &source_bounds.cast_xy_pairs::<SourceXYPair>();
+        let target_bounds = &target_bounds.cast_xy_pairs::<TargetXYPair>();
+
         let params = WarperParameters::compute::<F, SP, TP>(source_bounds, target_bounds)?;
         let tgt_ixs_jys = precompute_ixs_jys(source_bounds, target_bounds)?;
         let internals = precompute::precompute_internals::<F>(&tgt_ixs_jys, &params)?;
@@ -147,11 +148,11 @@ pub mod tests {
     #[cfg(feature = "io")]
     use std::fs;
 
-    use crate::RasterBounds;
+    use crate::{GenericXYPair, RasterBounds};
 
     pub fn reference_setup() -> Result<(
-        RasterBounds<LongitudeLatitude>,
-        RasterBounds<LambertConformalConic>,
+        RasterBounds<LongitudeLatitude, GenericXYPair>,
+        RasterBounds<LambertConformalConic, GenericXYPair>,
     )> {
         let source_projection = LongitudeLatitude;
         let target_projections =

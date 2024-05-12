@@ -1,6 +1,5 @@
-use std::{fmt::Debug, ops::Deref};
-
 use mappers::Projection;
+use std::fmt::Debug;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -34,33 +33,37 @@ pub enum WarperIOError {
     BincodeError(#[from] bincode::Error),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
-pub(crate) struct SrcCoord(f64);
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
-pub(crate) struct TgtCoord(f64);
+pub trait XYPair: Debug + Clone + Copy + PartialEq + PartialOrd {}
+impl XYPair for GenericXYPair {}
+impl XYPair for SourceXYPair {}
+impl XYPair for TargetXYPair {}
 
-impl Deref for SrcCoord {
-    type Target = f64;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
+impl From<GenericXYPair> for SourceXYPair {
+    fn from(v: GenericXYPair) -> Self {
+        SourceXYPair { x: v.x, y: v.y }
     }
 }
 
-impl Deref for TgtCoord {
-    type Target = f64;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
+impl From<GenericXYPair> for TargetXYPair {
+    fn from(v: GenericXYPair) -> Self {
+        TargetXYPair { x: v.x, y: v.y }
     }
 }
 
-pub(crate) trait RasterCoord: Debug + Clone + Copy + PartialEq + PartialOrd + Deref {}
-impl RasterCoord for SrcCoord {}
-impl RasterCoord for TgtCoord {}
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+pub struct GenericXYPair {
+    pub x: f64,
+    pub y: f64,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
-pub(crate) struct XYPair {
+pub(crate) struct SourceXYPair {
+    pub x: f64,
+    pub y: f64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+pub(crate) struct TargetXYPair {
     pub x: f64,
     pub y: f64,
 }
@@ -91,15 +94,15 @@ pub(crate) struct MinMaxPair<T> {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
-pub struct RasterBounds<P: Projection> {
-    pub(crate) min: XYPair,
-    pub(crate) max: XYPair,
-    pub(crate) spacing: XYPair,
+pub struct RasterBounds<P: Projection, T: XYPair> {
+    pub(crate) min: T,
+    pub(crate) max: T,
+    pub(crate) spacing: GenericXYPair,
     pub(crate) shape: IJPair,
     pub(crate) proj: P,
 }
 
-impl<P: Projection> RasterBounds<P> {
+impl<P: Projection> RasterBounds<P, GenericXYPair> {
     pub fn new(
         x_bounds: (f64, f64),
         y_bounds: (f64, f64),
@@ -125,11 +128,21 @@ impl<P: Projection> RasterBounds<P> {
         let ny = ny as u32 + 1;
 
         Ok(Self {
-            min: XYPair { x: min_x, y: min_y },
-            max: XYPair { x: max_x, y: max_y },
-            spacing: XYPair { x: dx, y: dy },
+            min: GenericXYPair { x: min_x, y: min_y },
+            max: GenericXYPair { x: max_x, y: max_y },
+            spacing: GenericXYPair { x: dx, y: dy },
             shape: IJPair { i: nx, j: ny },
             proj,
         })
+    }
+
+    pub(crate) fn cast_xy_pairs<T: From<GenericXYPair> + XYPair>(&self) -> RasterBounds<P, T> {
+        RasterBounds {
+            min: T::from(self.min),
+            max: T::from(self.max),
+            spacing: self.spacing,
+            shape: self.shape,
+            proj: self.proj,
+        }
     }
 }

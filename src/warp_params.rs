@@ -2,19 +2,20 @@ use mappers::{ConversionPipe, Projection};
 use ndarray::{concatenate, stack, Array, Axis};
 
 use crate::{
-    IJPair, IXJYPair, LonLatPair, MinMaxPair, RasterBounds, ResamplingFilter, WarperError, XYPair,
+    GenericXYPair, IJPair, IXJYPair, LonLatPair, MinMaxPair, RasterBounds, ResamplingFilter,
+    SourceXYPair, TargetXYPair, WarperError,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub(super) struct WarperParameters {
-    pub scales: XYPair,
+    pub scales: GenericXYPair,
     pub offsets: IJPair,
 }
 
 impl WarperParameters {
     pub fn compute<F: ResamplingFilter, SP: Projection, TP: Projection>(
-        source_bounds: &RasterBounds<SP>,
-        target_bounds: &RasterBounds<TP>,
+        source_bounds: &RasterBounds<SP, SourceXYPair>,
+        target_bounds: &RasterBounds<TP, TargetXYPair>,
     ) -> Result<Self, WarperError> {
         let wrap_margin = F::X_RADIUS.max(F::Y_RADIUS) as u32;
 
@@ -26,8 +27,8 @@ impl WarperParameters {
         let (offsets, scales) = compute_offsets_and_scales(
             &tgt_extrema,
             &clamped_extrema,
-            target_bounds,
             source_bounds,
+            target_bounds,
             &IJPair {
                 i: F::X_RADIUS as u32,
                 j: F::Y_RADIUS as u32,
@@ -39,8 +40,8 @@ impl WarperParameters {
 }
 
 fn compute_target_outer_extrema<SP: Projection, TP: Projection>(
-    source_bounds: &RasterBounds<SP>,
-    target_bounds: &RasterBounds<TP>,
+    source_bounds: &RasterBounds<SP, SourceXYPair>,
+    target_bounds: &RasterBounds<TP, TargetXYPair>,
 ) -> Result<MinMaxPair<IXJYPair>, WarperError> {
     let proj_pipe = &target_bounds.proj.pipe_to(&source_bounds.proj);
     let tgt_extr = get_target_extrema_lonlat(target_bounds, proj_pipe)?;
@@ -97,10 +98,10 @@ fn compute_clamped_extrema(
 fn compute_offsets_and_scales<SP: Projection, TP: Projection>(
     tgt_extrema: &MinMaxPair<IXJYPair>,
     clamped_extrema: &MinMaxPair<IJPair>,
-    target_bounds: &RasterBounds<SP>,
-    source_bounds: &RasterBounds<TP>,
+    source_bounds: &RasterBounds<SP, SourceXYPair>,
+    target_bounds: &RasterBounds<TP, TargetXYPair>,
     kernel_radius: &IJPair,
-) -> Result<(IJPair, XYPair), WarperError> {
+) -> Result<(IJPair, GenericXYPair), WarperError> {
     let offsets = compute_src_offsets(&clamped_extrema.min, &source_bounds.shape, kernel_radius)?;
 
     let src_x_size_raw = ((source_bounds.shape.i - clamped_extrema.min.i) as f64)
@@ -128,7 +129,7 @@ fn compute_offsets_and_scales<SP: Projection, TP: Projection>(
             i: offsets.i,
             j: offsets.j,
         },
-        XYPair {
+        GenericXYPair {
             x: x_scale,
             y: y_scale,
         },
@@ -158,7 +159,7 @@ fn compute_src_offsets(
 }
 
 fn get_target_extrema_lonlat<SP: Projection, TP: Projection>(
-    target_bounds: &RasterBounds<TP>,
+    target_bounds: &RasterBounds<TP, TargetXYPair>,
     proj_pipe: &ConversionPipe<TP, SP>,
 ) -> Result<MinMaxPair<LonLatPair>, WarperError> {
     let x_min = target_bounds.min.x - (0.5 * target_bounds.spacing.x);
@@ -234,12 +235,15 @@ mod tests {
     use super::{compute_clamped_extrema, compute_target_outer_extrema};
     use crate::{
         tests::reference_setup, warp_params::compute_offsets_and_scales, CubicBSpline, IJPair,
-        ResamplingFilter,
+        ResamplingFilter, SourceXYPair, TargetXYPair,
     };
 
     #[test]
     fn assert_with_sample_values() -> Result<()> {
         let (source_bounds, target_bounds) = reference_setup()?;
+
+        let source_bounds = source_bounds.cast_xy_pairs::<SourceXYPair>();
+        let target_bounds = target_bounds.cast_xy_pairs::<TargetXYPair>();
 
         let extrema = compute_target_outer_extrema(&source_bounds, &target_bounds).unwrap();
 
@@ -258,8 +262,8 @@ mod tests {
         let (offsets, scales) = compute_offsets_and_scales(
             &extrema,
             &clamped_extrema,
-            &target_bounds,
             &source_bounds,
+            &target_bounds,
             &IJPair {
                 i: CubicBSpline::X_RADIUS as u32,
                 j: CubicBSpline::Y_RADIUS as u32,
