@@ -22,7 +22,7 @@ pub use filters::{CubicBSpline, MitchellNetravali, ResamplingFilter};
 #[cfg(feature = "io")]
 pub use helpers::WarperIOError;
 pub use helpers::{GenericXYPair, RasterBounds, WarperError, XYPair};
-pub(crate) use helpers::{IJPair, IXJYPair, LonLatPair, MinMaxPair, SourceXYPair, TargetXYPair};
+pub(crate) use helpers::{IJPair, IXJYPair, MinMaxPair, SourceXYPair, TargetXYPair};
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "io", derive(Serialize, Deserialize))]

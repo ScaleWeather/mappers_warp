@@ -68,12 +68,6 @@ pub(crate) struct TargetXYPair {
     pub y: f64,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
-pub(crate) struct LonLatPair {
-    pub lon: f64,
-    pub lat: f64,
-}
-
 /// Floating indexes in the source raster
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub(crate) struct IXJYPair {

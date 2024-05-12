@@ -2,7 +2,7 @@ use mappers::{ConversionPipe, Projection};
 use ndarray::{concatenate, stack, Array, Axis};
 
 use crate::{
-    GenericXYPair, IJPair, IXJYPair, LonLatPair, MinMaxPair, RasterBounds, ResamplingFilter,
+    GenericXYPair, IJPair, IXJYPair, MinMaxPair, RasterBounds, ResamplingFilter,
     SourceXYPair, TargetXYPair, WarperError,
 };
 
@@ -47,10 +47,10 @@ fn compute_target_outer_extrema<SP: Projection, TP: Projection>(
     let tgt_extr = get_target_extrema_lonlat(target_bounds, proj_pipe)?;
 
     // Shift here is because extrema are computed at edges
-    let min_x_out = ((tgt_extr.min.lon - source_bounds.min.x) / source_bounds.spacing.x) + 0.5;
-    let max_x_out = ((tgt_extr.max.lon - source_bounds.min.x) / source_bounds.spacing.x) + 0.5;
-    let max_y_out = ((source_bounds.max.y - tgt_extr.min.lat) / source_bounds.spacing.y) + 0.5;
-    let min_y_out = ((source_bounds.max.y - tgt_extr.max.lat) / source_bounds.spacing.y) + 0.5;
+    let min_x_out = ((tgt_extr.min.x - source_bounds.min.x) / source_bounds.spacing.x) + 0.5;
+    let max_x_out = ((tgt_extr.max.x - source_bounds.min.x) / source_bounds.spacing.x) + 0.5;
+    let max_y_out = ((source_bounds.max.y - tgt_extr.min.y) / source_bounds.spacing.y) + 0.5;
+    let min_y_out = ((source_bounds.max.y - tgt_extr.max.y) / source_bounds.spacing.y) + 0.5;
 
     Ok(MinMaxPair {
         min: IXJYPair {
@@ -161,7 +161,7 @@ fn compute_src_offsets(
 fn get_target_extrema_lonlat<SP: Projection, TP: Projection>(
     target_bounds: &RasterBounds<TP, TargetXYPair>,
     proj_pipe: &ConversionPipe<TP, SP>,
-) -> Result<MinMaxPair<LonLatPair>, WarperError> {
+) -> Result<MinMaxPair<SourceXYPair>, WarperError> {
     let x_min = target_bounds.min.x - (0.5 * target_bounds.spacing.x);
     let x_max = target_bounds.max.x + (0.5 * target_bounds.spacing.x);
     let y_min = target_bounds.min.y - (0.5 * target_bounds.spacing.y);
@@ -194,35 +194,35 @@ fn get_target_extrema_lonlat<SP: Projection, TP: Projection>(
         ],
     )?;
 
-    let mut min_lon = f64::INFINITY;
-    let mut max_lon = f64::NEG_INFINITY;
+    let mut min_src_x = f64::INFINITY;
+    let mut max_src_x = f64::NEG_INFINITY;
 
-    let mut min_lat = f64::INFINITY;
-    let mut max_lat = f64::NEG_INFINITY;
+    let mut min_src_y = f64::INFINITY;
+    let mut max_src_y = f64::NEG_INFINITY;
 
     edges_xy
         .rows()
         .into_iter()
         .try_for_each(|xy| -> Result<(), WarperError> {
-            let (lon, lat) = proj_pipe.convert(xy[0], xy[1])?;
+            let (src_x, src_y) = proj_pipe.convert(xy[0], xy[1])?;
 
-            min_lon = min_lon.min(lon);
-            max_lon = max_lon.max(lon);
+            min_src_x = min_src_x.min(src_x);
+            max_src_x = max_src_x.max(src_x);
 
-            min_lat = min_lat.min(lat);
-            max_lat = max_lat.max(lat);
+            min_src_y = min_src_y.min(src_y);
+            max_src_y = max_src_y.max(src_y);
 
             Ok(())
         })?;
 
     Ok(MinMaxPair {
-        min: LonLatPair {
-            lon: min_lon,
-            lat: min_lat,
+        min: SourceXYPair {
+            x: min_src_x,
+            y: min_src_y,
         },
-        max: LonLatPair {
-            lon: max_lon,
-            lat: max_lat,
+        max: SourceXYPair {
+            x: max_src_x,
+            y: max_src_y,
         },
     })
 }

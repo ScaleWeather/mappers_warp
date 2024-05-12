@@ -2,7 +2,7 @@ use mappers::Projection;
 use ndarray::Array2;
 
 use crate::{
-    helpers::GenericXYPair, warp_params::WarperParameters, IXJYPair, LonLatPair, RasterBounds,
+    helpers::GenericXYPair, warp_params::WarperParameters, IXJYPair, RasterBounds,
     ResamplingFilter, ResamplingKernelInternals, SourceXYPair, TargetXYPair, WarperError,
 };
 
@@ -14,9 +14,9 @@ pub(crate) fn precompute_ixs_jys<SP: Projection, TP: Projection>(
         x: target_bounds.min.x - (0.5 * target_bounds.spacing.x),
         y: target_bounds.max.y + (0.5 * target_bounds.spacing.y),
     };
-    let src_ul_edge_corner = LonLatPair {
-        lon: source_bounds.min.x - (0.5 * source_bounds.spacing.x),
-        lat: source_bounds.max.y + (0.5 * source_bounds.spacing.y),
+    let src_ul_edge_corner = SourceXYPair {
+        x: source_bounds.min.x - (0.5 * source_bounds.spacing.x),
+        y: source_bounds.max.y + (0.5 * source_bounds.spacing.y),
     };
 
     let conversion_scaling = GenericXYPair {
@@ -36,11 +36,11 @@ pub(crate) fn precompute_ixs_jys<SP: Projection, TP: Projection>(
             let tgt_x = tgt_ul_edge_corner.x + ((i as f64 + 0.5) * target_bounds.spacing.x);
             let tgt_y = tgt_ul_edge_corner.y - ((j as f64 + 0.5) * target_bounds.spacing.y);
 
-            let (tgt_lon, tgt_lat) = proj_pipe.convert_unchecked(tgt_x, tgt_y);
+            let (src_x, src_y) = proj_pipe.convert_unchecked(tgt_x, tgt_y);
 
             let result = IXJYPair {
-                ix: (tgt_lon - src_ul_edge_corner.lon) * conversion_scaling.x,
-                jy: (src_ul_edge_corner.lat - tgt_lat) * conversion_scaling.y,
+                ix: (src_x - src_ul_edge_corner.x) * conversion_scaling.x,
+                jy: (src_ul_edge_corner.y - src_y) * conversion_scaling.y,
             };
 
             result
