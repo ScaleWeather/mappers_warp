@@ -30,7 +30,7 @@ fn waves() -> Result<()> {
 
     let source_raster: Array2<f64> = ndarray_npy::read_npy("./tests/data/waves_34.npy")?;
     let ref_raster: Array2<f64> = ndarray_npy::read_npy("./tests/data/waves_ref.npy")?;
-    let target_raster = warper.warp(&source_raster)?;
+    let target_raster = warper.warp_ignore_nodata(&source_raster)?;
 
     assert_eq!(target_raster.shape(), ref_raster.shape());
     Zip::from(&target_raster)
@@ -59,7 +59,7 @@ fn gfs_t2m() -> Result<()> {
         &target_domain,
     )?;
     let source_raster: Array2<f64> = ndarray_npy::read_npy("./tests/data/gfs_t2m.npy")?;
-    let target_raster = warper.warp(&source_raster)?;
+    let target_raster = warper.warp_ignore_nodata(&source_raster)?;
 
     target_raster.iter().for_each(|&v| assert!(v.is_finite()));
 
@@ -88,7 +88,7 @@ fn mitchell() -> Result<()> {
         &target_domain,
     )?;
     let source_raster: Array2<f64> = ndarray_npy::read_npy("./tests/data/gfs_t2m.npy")?;
-    let target_raster = warper.warp(&source_raster)?;
+    let target_raster = warper.warp_ignore_nodata(&source_raster)?;
 
     target_raster.iter().for_each(|&v| assert!(v.is_finite()));
 
@@ -121,7 +121,7 @@ fn nan_padded_waves() -> Result<()> {
     let source_raster: Array2<f64> = ndarray_npy::read_npy("./tests/data/waves_34.npy")?;
     let source_raster = raster_constant_pad(&source_raster, 3, f64::NAN);
     let ref_raster: Array2<f64> = ndarray_npy::read_npy("./tests/data/waves_ref.npy")?;
-    let target_raster = warper.warp(&source_raster)?;
+    let target_raster = warper.warp_ignore_nodata(&source_raster)?;
 
     assert_eq!(target_raster.shape(), ref_raster.shape());
     Zip::from(&target_raster)
@@ -152,7 +152,7 @@ fn invalid_raster_size() -> Result<()> {
     )?;
 
     let source_raster = Array2::zeros((3, 3));
-    let result = warper.warp(&source_raster);
+    let result = warper.warp_ignore_nodata(&source_raster);
 
     assert!(result.is_err());
 
