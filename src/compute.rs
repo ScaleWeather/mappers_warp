@@ -104,4 +104,123 @@ impl Warper {
 
         Ok(target_raster)
     }
+
+    pub fn warp_reject_nodata(
+        &self,
+        source_raster: &Array2<f64>,
+    ) -> Result<Array2<f64>, WarperError> {
+        if source_raster.shape()[0] != self.source_shape[0] as usize
+            || source_raster.shape()[1] != self.source_shape[1] as usize
+        {
+            return Err(WarperError::InvalidRasterDimensions);
+        }
+
+        let mut target_raster = Array2::from_elem(self.internals.raw_dim(), f64::NEG_INFINITY);
+
+        Zip::from(&mut target_raster)
+            .and(&self.internals)
+            .fold_while(Ok(()), |_, v, intr| {
+                let values = source_raster.slice(s![
+                    (intr.anchor_idx.1 - 1) as usize..(intr.anchor_idx.1 + 3) as usize,
+                    (intr.anchor_idx.0 - 1) as usize..(intr.anchor_idx.0 + 3) as usize
+                ]);
+
+                let mut weight_accum = 0.0;
+                let mut result_accum = 0.0;
+
+                for j in 0..4 {
+                    let mut inner_weight_accum = 0.0;
+                    let mut inner_result_accum = 0.0;
+
+                    for i in 0..4 {
+                        let value = values[[j, i]];
+
+                        if value.is_nan() {
+                            return FoldWhile::Done(Err(WarperError::WarpingError));
+                        } else {
+                            let x_weight = intr.x_weights[i];
+                            inner_weight_accum += x_weight;
+                            inner_result_accum += x_weight * value;
+                        }
+                    }
+
+                    let y_weight = intr.y_weights[j];
+
+                    weight_accum += inner_weight_accum * y_weight;
+                    result_accum += inner_result_accum * y_weight;
+                }
+
+                let result = result_accum / weight_accum;
+
+                if result.is_finite() {
+                    *v = result;
+                    FoldWhile::Continue(Ok(()))
+                } else {
+                    FoldWhile::Done(Err(WarperError::WarpingError))
+                }
+            })
+            .into_inner()?;
+
+        Ok(target_raster)
+    }
+
+    pub fn warp_discard_nodata(
+        &self,
+        source_raster: &Array2<f64>,
+    ) -> Result<Array2<f64>, WarperError> {
+        if source_raster.shape()[0] != self.source_shape[0] as usize
+            || source_raster.shape()[1] != self.source_shape[1] as usize
+        {
+            return Err(WarperError::InvalidRasterDimensions);
+        }
+
+        let mut target_raster = Array2::from_elem(self.internals.raw_dim(), f64::NEG_INFINITY);
+
+        Zip::from(&mut target_raster)
+            .and(&self.internals)
+            .fold_while(Ok(()), |_, v, intr| {
+                let values = source_raster.slice(s![
+                    (intr.anchor_idx.1 - 1) as usize..(intr.anchor_idx.1 + 3) as usize,
+                    (intr.anchor_idx.0 - 1) as usize..(intr.anchor_idx.0 + 3) as usize
+                ]);
+
+                let mut weight_accum = 0.0;
+                let mut result_accum = 0.0;
+
+                for j in 0..4 {
+                    let mut inner_weight_accum = 0.0;
+                    let mut inner_result_accum = 0.0;
+
+                    for i in 0..4 {
+                        let value = values[[j, i]];
+
+                        if value.is_nan() {
+                            *v = f64::NAN;
+                            return FoldWhile::Continue(Ok(()));
+                        } else {
+                            let x_weight = intr.x_weights[i];
+                            inner_weight_accum += x_weight;
+                            inner_result_accum += x_weight * value;
+                        }
+                    }
+
+                    let y_weight = intr.y_weights[j];
+
+                    weight_accum += inner_weight_accum * y_weight;
+                    result_accum += inner_result_accum * y_weight;
+                }
+
+                let result = result_accum / weight_accum;
+
+                if result.is_finite() {
+                    *v = result;
+                    FoldWhile::Continue(Ok(()))
+                } else {
+                    FoldWhile::Done(Err(WarperError::WarpingError))
+                }
+            })
+            .into_inner()?;
+
+        Ok(target_raster)
+    }
 }
