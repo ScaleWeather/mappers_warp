@@ -28,12 +28,26 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     .unwrap();
     let source_raster: Array2<f64> = ndarray_npy::read_npy("./tests/data/gfs_t2m.npy").unwrap();
 
-    c.bench_function("warp only", |b| {
-        b.iter(|| warper.warp(black_box(&source_raster)))
+    c.bench_function("warp_unchecked", |b| {
+        b.iter(|| warper.warp_unchecked(black_box(&source_raster)))
+    });
+
+    c.bench_function("warp_ignore_nodata", |b| {
+        b.iter(|| warper.warp_ignore_nodata(black_box(&source_raster)))
+    });
+
+    c.bench_function("warp_discard_nodata", |b| {
+        b.iter(|| warper.warp_discard_nodata(black_box(&source_raster)))
+    });
+
+    c.bench_function("warp_reject_nodata", |b| {
+        b.iter(|| warper.warp_reject_nodata(black_box(&source_raster)))
     });
 
     // error check
-    let _ = warper.warp(&source_raster).unwrap();
+    let _ = warper.warp_ignore_nodata(&source_raster).unwrap();
+    let _ = warper.warp_discard_nodata(&source_raster).unwrap();
+    let _ = warper.warp_reject_nodata(&source_raster).unwrap();
 }
 
 criterion_group!(benches, criterion_benchmark);
