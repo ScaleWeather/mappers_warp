@@ -1,7 +1,7 @@
 use anyhow::Result;
 use float_cmp::assert_approx_eq;
 use mappers::{
-    projections::{LambertConformalConic, LongitudeLatitude},
+    projections::{AzimuthalEquidistant, LambertConformalConic, LongitudeLatitude},
     Ellipsoid,
 };
 use ndarray::{Array2, Zip};
@@ -155,6 +155,72 @@ fn invalid_raster_size() -> Result<()> {
     let result = warper.warp_ignore_nodata(&source_raster);
 
     assert!(result.is_err());
+
+    Ok(())
+}
+
+#[test]
+fn aeqd_to_lcc() -> Result<()> {
+    let src_proj = AzimuthalEquidistant::new(19.0926, 52.3469, Ellipsoid::SPHERE)?;
+    let tgt_proj = LambertConformalConic::new(
+        19.0926,
+        52.3469,
+        52.344876525433854,
+        52.34892347456614,
+        Ellipsoid::WGS84,
+    )?;
+
+    let source_domain = RasterBounds::new(
+        (-452500., 452500.),
+        (-452500., 452500.),
+        1000.,
+        1000.,
+        src_proj,
+    )?;
+    let target_domain = RasterBounds::new(
+        (-449500., 449500.),
+        (-449500., 449500.),
+        1000.,
+        1000.,
+        tgt_proj,
+    )?;
+
+    let warper = Warper::initialize::<CubicBSpline, AzimuthalEquidistant, LambertConformalConic>(
+        &source_domain,
+        &target_domain,
+    )?;
+
+    let source_raster: Array2<f32> = ndarray_npy::read_npy("./tests/data/aeqd_nan.npy")?;
+    let source_raster = source_raster.mapv(f64::from);
+    let source_raster = raster_constant_pad(&source_raster, 3, f64::NAN);
+
+    let target_raster = warper.warp_ignore_nodata(&source_raster)?;
+    let ref_raster: Array2<f64> = ndarray_npy::read_npy("./tests/data/aeqd_ref.npy")?;
+
+    assert_eq!(target_raster.shape(), ref_raster.shape());
+    Zip::from(&target_raster)
+        .and(&ref_raster)
+        .map_collect(|&f, &o| assert_approx_eq!(f64, f, o, epsilon = 1e-6));
+
+    let source_values = source_raster
+        .into_iter()
+        .filter(|&v| !v.is_nan())
+        .collect::<Vec<f64>>();
+
+    let target_values = target_raster
+        .into_iter()
+        .filter(|&v| !v.is_nan())
+        .collect::<Vec<f64>>();
+
+    target_values.iter().for_each(|v| assert!(v.is_finite()));
+
+    let source_max = *source_values.iter().max_by(|a, b| a.total_cmp(b)).unwrap();
+    let source_min = *source_values.iter().min_by(|a, b| a.total_cmp(b)).unwrap();
+    let target_max = *target_values.iter().max_by(|a, b| a.total_cmp(b)).unwrap();
+    let target_min = *target_values.iter().min_by(|a, b| a.total_cmp(b)).unwrap();
+
+    assert!(target_max <= source_max);
+    assert_approx_eq!(f64, source_min, target_min, epsilon = 1e-12);
 
     Ok(())
 }
