@@ -1,6 +1,6 @@
 [package]
 name = "notgdalwarp"
-version = "0.0.3"
+version = "0.0.4-alpha.1"
 edition = "2021"
 publish = false
 authors = ["Jakub Lewandowski <scaleweather@gmail.com>"]
@@ -12,7 +12,7 @@ license = "Apache-2.0"
 exclude = [".github/*"]
 
 [dependencies]
-ndarray = { version = "0.15", default-features = false, features = ["std"] }
+ndarray = { version = "0.16", default-features = false, features = ["std"] }
 thiserror = { version = "1.0", default-features = false }
 bincode = { version = "1.3", default-features = false, optional = true }
 serde = { version = "1.0", default-features = false, optional = true, features = [
