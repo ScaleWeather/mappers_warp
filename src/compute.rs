@@ -1,10 +1,10 @@
-use ndarray::{s, Array2, FoldWhile, Zip};
+use ndarray::{s, Array2, ArrayView2, FoldWhile, Zip};
 
 use crate::{Warper, WarperError};
 
 impl Warper {
     #[must_use]
-    pub fn warp_unchecked(&self, source_raster: &Array2<f64>) -> Array2<f64> {
+    pub fn warp_unchecked(&self, source_raster: &ArrayView2<f64>) -> Array2<f64> {
         let target_raster = self.internals.map(|intr| {
             let values = source_raster.slice(s![
                 (intr.anchor_idx.1 - 1) as usize..(intr.anchor_idx.1 + 3) as usize,
@@ -46,7 +46,7 @@ impl Warper {
     // will be set to zero to ignore them.
     pub fn warp_ignore_nodata(
         &self,
-        source_raster: &Array2<f64>,
+        source_raster: &ArrayView2<f64>,
     ) -> Result<Array2<f64>, WarperError> {
         if source_raster.shape()[0] != self.source_shape[0] as usize
             || source_raster.shape()[1] != self.source_shape[1] as usize
@@ -108,7 +108,7 @@ impl Warper {
 
     pub fn warp_reject_nodata(
         &self,
-        source_raster: &Array2<f64>,
+        source_raster: &ArrayView2<f64>,
     ) -> Result<Array2<f64>, WarperError> {
         if source_raster.shape()[0] != self.source_shape[0] as usize
             || source_raster.shape()[1] != self.source_shape[1] as usize
@@ -166,7 +166,7 @@ impl Warper {
 
     pub fn warp_discard_nodata(
         &self,
-        source_raster: &Array2<f64>,
+        source_raster: &ArrayView2<f64>,
     ) -> Result<Array2<f64>, WarperError> {
         if source_raster.shape()[0] != self.source_shape[0] as usize
             || source_raster.shape()[1] != self.source_shape[1] as usize
