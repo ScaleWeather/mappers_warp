@@ -4,7 +4,12 @@ use crate::{Warper, WarperError};
 
 impl Warper {
     #[must_use]
-    pub fn warp_unchecked(&self, source_raster: &ArrayView2<f64>) -> Array2<f64> {
+    pub fn warp_unchecked<'a, A: Into<ArrayView2<'a, f64>>>(
+        &self,
+        source_raster: A,
+    ) -> Array2<f64> {
+        let source_raster: ArrayView2<f64> = source_raster.into();
+
         let target_raster = self.internals.map(|intr| {
             let values = source_raster.slice(s![
                 (intr.anchor_idx.1 - 1) as usize..(intr.anchor_idx.1 + 3) as usize,
@@ -44,10 +49,12 @@ impl Warper {
     // this source pixel is just one among other several source pixels, and it might be possible that there are invalid
     // values in those other contributing source pixels. The weights used to take into account those invalid values
     // will be set to zero to ignore them.
-    pub fn warp_ignore_nodata(
+    pub fn warp_ignore_nodata<'a, A: Into<ArrayView2<'a, f64>>>(
         &self,
-        source_raster: &ArrayView2<f64>,
+        source_raster: A,
     ) -> Result<Array2<f64>, WarperError> {
+        let source_raster: ArrayView2<f64> = source_raster.into();
+
         if source_raster.shape()[0] != self.source_shape[0] as usize
             || source_raster.shape()[1] != self.source_shape[1] as usize
         {
@@ -106,10 +113,12 @@ impl Warper {
         Ok(target_raster)
     }
 
-    pub fn warp_reject_nodata(
+    pub fn warp_reject_nodata<'a, A: Into<ArrayView2<'a, f64>>>(
         &self,
-        source_raster: &ArrayView2<f64>,
+        source_raster: A,
     ) -> Result<Array2<f64>, WarperError> {
+        let source_raster: ArrayView2<f64> = source_raster.into();
+
         if source_raster.shape()[0] != self.source_shape[0] as usize
             || source_raster.shape()[1] != self.source_shape[1] as usize
         {
@@ -164,10 +173,12 @@ impl Warper {
         Ok(target_raster)
     }
 
-    pub fn warp_discard_nodata(
+    pub fn warp_discard_nodata<'a, A: Into<ArrayView2<'a, f64>>>(
         &self,
-        source_raster: &ArrayView2<f64>,
+        source_raster: A,
     ) -> Result<Array2<f64>, WarperError> {
+        let source_raster: ArrayView2<f64> = source_raster.into();
+
         if source_raster.shape()[0] != self.source_shape[0] as usize
             || source_raster.shape()[1] != self.source_shape[1] as usize
         {

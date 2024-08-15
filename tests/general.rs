@@ -32,7 +32,7 @@ fn waves() -> Result<()> {
 
     let source_raster: Array2<f64> = open_nc_data("./tests/data/waves_34.nc")?;
     let ref_raster: Array2<f64> = open_nc_data("./tests/data/waves_ref.nc")?;
-    let target_raster = warper.warp_ignore_nodata(&source_raster.view())?;
+    let target_raster = warper.warp_ignore_nodata(&source_raster)?;
 
     assert_eq!(target_raster.shape(), ref_raster.shape());
     Zip::from(&target_raster)
@@ -61,7 +61,7 @@ fn gfs_t2m() -> Result<()> {
         &target_domain,
     )?;
     let source_raster: Array2<f64> = open_nc_data("./tests/data/gfs_t2m.nc")?;
-    let target_raster = warper.warp_ignore_nodata(&source_raster.view())?;
+    let target_raster = warper.warp_ignore_nodata(&source_raster)?;
 
     target_raster.iter().for_each(|&v| assert!(v.is_finite()));
 
@@ -90,10 +90,9 @@ fn mitchell() -> Result<()> {
         &target_domain,
     )?;
     let source_raster: Array2<f64> = open_nc_data("./tests/data/gfs_t2m.nc")?;
-    let target_raster = warper.warp_ignore_nodata(&source_raster.view())?;
+    let target_raster = warper.warp_ignore_nodata(&source_raster)?;
 
     target_raster.iter().for_each(|&v| assert!(v.is_finite()));
-
 
     dbg!(target_raster.max()?);
     dbg!(source_raster.max()?);
@@ -127,7 +126,7 @@ fn nan_padded_waves() -> Result<()> {
     let source_raster: Array2<f64> = open_nc_data("./tests/data/waves_34.nc")?;
     let source_raster = raster_constant_pad(&source_raster, 3, f64::NAN);
     let ref_raster: Array2<f64> = open_nc_data("./tests/data/waves_ref.nc")?;
-    let target_raster = warper.warp_ignore_nodata(&source_raster.view())?;
+    let target_raster = warper.warp_ignore_nodata(&source_raster)?;
 
     assert_eq!(target_raster.shape(), ref_raster.shape());
     Zip::from(&target_raster)
@@ -158,7 +157,7 @@ fn invalid_raster_size() -> Result<()> {
     )?;
 
     let source_raster = Array2::zeros((3, 3));
-    let result = warper.warp_ignore_nodata(&source_raster.view());
+    let result = warper.warp_ignore_nodata(&source_raster);
 
     assert!(result.is_err());
 
@@ -199,7 +198,7 @@ fn aeqd_to_lcc() -> Result<()> {
     let source_raster: Array2<f64> = open_nc_data("./tests/data/aeqd_nan.nc")?;
     let source_raster = raster_constant_pad(&source_raster, 3, f64::NAN);
 
-    let target_raster = warper.warp_ignore_nodata(&source_raster.view())?;
+    let target_raster = warper.warp_ignore_nodata(&source_raster)?;
     let ref_raster: Array2<f64> = open_nc_data("./tests/data/aeqd_ref.nc")?;
 
     assert_eq!(target_raster.shape(), ref_raster.shape());

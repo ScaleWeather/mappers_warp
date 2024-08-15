@@ -38,25 +38,25 @@ pub fn inner_bench(c: &mut Criterion) -> Result<()> {
     };
 
     c.bench_function("warp_unchecked", |b| {
-        b.iter(|| warper.warp_unchecked(black_box(&source_raster.view())))
+        b.iter(|| warper.warp_unchecked(black_box(&source_raster)))
     });
 
     c.bench_function("warp_ignore_nodata", |b| {
-        b.iter(|| warper.warp_ignore_nodata(black_box(&source_raster.view())))
+        b.iter(|| warper.warp_ignore_nodata(black_box(&source_raster)))
     });
 
     c.bench_function("warp_discard_nodata", |b| {
-        b.iter(|| warper.warp_discard_nodata(black_box(&source_raster.view())))
+        b.iter(|| warper.warp_discard_nodata(black_box(&source_raster)))
     });
 
     c.bench_function("warp_reject_nodata", |b| {
-        b.iter(|| warper.warp_reject_nodata(black_box(&source_raster.view())))
+        b.iter(|| warper.warp_reject_nodata(black_box(&source_raster)))
     });
 
     // error check
-    let _ = warper.warp_ignore_nodata(&source_raster.view())?;
-    let _ = warper.warp_discard_nodata(&source_raster.view())?;
-    let _ = warper.warp_reject_nodata(&source_raster.view())?;
+    let _ = warper.warp_ignore_nodata(&source_raster)?;
+    let _ = warper.warp_discard_nodata(&source_raster)?;
+    let _ = warper.warp_reject_nodata(&source_raster)?;
 
     Ok(())
 }

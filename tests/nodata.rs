@@ -32,7 +32,7 @@ fn waves_unchecked() -> Result<()> {
 
     let source_raster: Array2<f64> = open_nc_data("./tests/data/waves_34.nc")?;
     let ref_raster: Array2<f64> = open_nc_data("./tests/data/waves_ref.nc")?;
-    let target_raster = warper.warp_unchecked(&source_raster.view());
+    let target_raster = warper.warp_unchecked(&source_raster);
 
     assert_eq!(target_raster.shape(), ref_raster.shape());
     Zip::from(&target_raster)
@@ -68,7 +68,7 @@ fn nan_ignore() -> Result<()> {
     source_raster.slice_mut(s![18..25, 19..24]).fill(f64::NAN);
     source_raster.slice_mut(s![13..15, 21..23]).fill(f64::NAN);
 
-    let target_raster = warper.warp_ignore_nodata(&source_raster.view())?;
+    let target_raster = warper.warp_ignore_nodata(&source_raster)?;
     let ref_raster: Array2<f64> = open_nc_data("./tests/data/waves_nan_ignore_ref.nc")?;
 
     assert_eq!(target_raster.shape(), ref_raster.shape());
@@ -102,7 +102,7 @@ fn nan_reject() -> Result<()> {
     // should work
     let source_raster: Array2<f64> = open_nc_data("./tests/data/waves_34.nc")?;
     let ref_raster: Array2<f64> = open_nc_data("./tests/data/waves_ref.nc")?;
-    let target_raster = warper.warp_reject_nodata(&source_raster.view())?;
+    let target_raster = warper.warp_reject_nodata(&source_raster)?;
 
     assert_eq!(target_raster.shape(), ref_raster.shape());
     Zip::from(&target_raster)
@@ -113,7 +113,7 @@ fn nan_reject() -> Result<()> {
     let mut source_raster: Array2<f64> = open_nc_data("./tests/data/waves_34.nc")?;
     source_raster.slice_mut(s![14..15, 18..19]).fill(f64::NAN);
 
-    let target_raster = warper.warp_reject_nodata(&source_raster.view());
+    let target_raster = warper.warp_reject_nodata(&source_raster);
     assert!(target_raster.is_err());
 
     Ok(())
@@ -145,7 +145,7 @@ fn nan_discard() -> Result<()> {
     source_raster.slice_mut(s![18..25, 19..24]).fill(f64::NAN);
     source_raster.slice_mut(s![13..15, 21..23]).fill(f64::NAN);
 
-    let target_raster = warper.warp_discard_nodata(&source_raster.view())?;
+    let target_raster = warper.warp_discard_nodata(&source_raster)?;
     let ref_raster: Array2<f64> = open_nc_data("./tests/data/waves_nan_discard_ref.nc")?;
 
     assert_eq!(target_raster.shape(), ref_raster.shape());
@@ -179,9 +179,9 @@ fn non_finite_result() -> Result<()> {
     let mut source_raster: Array2<f64> = open_nc_data("./tests/data/waves_34.nc")?;
     source_raster.slice_mut(s![13..15, 21..23]).fill(f64::MAX);
 
-    assert!(warper.warp_discard_nodata(&source_raster.view()).is_err());
-    assert!(warper.warp_reject_nodata(&source_raster.view()).is_err());
-    assert!(warper.warp_ignore_nodata(&source_raster.view()).is_err());
+    assert!(warper.warp_discard_nodata(&source_raster).is_err());
+    assert!(warper.warp_reject_nodata(&source_raster).is_err());
+    assert!(warper.warp_ignore_nodata(&source_raster).is_err());
 
     Ok(())
 }
