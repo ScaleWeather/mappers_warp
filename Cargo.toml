@@ -1,6 +1,6 @@
 [package]
 name = "notgdalwarp"
-version = "0.0.5-alpha.1"
+version = "0.0.5"
 edition = "2021"
 publish = false
 authors = ["Jakub Lewandowski <scaleweather@gmail.com>"]
@@ -22,9 +22,9 @@ mappers = { version = "0.7", default-features = false }
 
 [dev-dependencies]
 float-cmp = { version = "0.9" }
-ndarray-npy = { version = "0.8" }
+# something, something, dependecies something
+netcdf = {version = "0.10", features = ["ndarray", "static"]}
 anyhow = { version = "1.0" }
-ndarray-stats = { version = "0.5" }
 criterion = { version = "0.5" }
 
 [features]

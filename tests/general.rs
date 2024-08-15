@@ -5,8 +5,10 @@ use mappers::{
     Ellipsoid,
 };
 use ndarray::{Array2, Zip};
-use ndarray_stats::QuantileExt;
 use notgdalwarp::{raster_constant_pad, CubicBSpline, MitchellNetravali, RasterBounds, Warper};
+
+mod utils;
+use utils::*;
 
 #[test]
 fn waves() -> Result<()> {
@@ -28,9 +30,9 @@ fn waves() -> Result<()> {
         &target_bounds,
     )?;
 
-    let source_raster: Array2<f64> = ndarray_npy::read_npy("./tests/data/waves_34.npy")?;
-    let ref_raster: Array2<f64> = ndarray_npy::read_npy("./tests/data/waves_ref.npy")?;
-    let target_raster = warper.warp_ignore_nodata(&source_raster)?;
+    let source_raster: Array2<f64> = open_nc_data("./tests/data/waves_34.nc")?;
+    let ref_raster: Array2<f64> = open_nc_data("./tests/data/waves_ref.nc")?;
+    let target_raster = warper.warp_ignore_nodata(&source_raster.view())?;
 
     assert_eq!(target_raster.shape(), ref_raster.shape());
     Zip::from(&target_raster)
@@ -58,8 +60,8 @@ fn gfs_t2m() -> Result<()> {
         &source_domain,
         &target_domain,
     )?;
-    let source_raster: Array2<f64> = ndarray_npy::read_npy("./tests/data/gfs_t2m.npy")?;
-    let target_raster = warper.warp_ignore_nodata(&source_raster)?;
+    let source_raster: Array2<f64> = open_nc_data("./tests/data/gfs_t2m.nc")?;
+    let target_raster = warper.warp_ignore_nodata(&source_raster.view())?;
 
     target_raster.iter().for_each(|&v| assert!(v.is_finite()));
 
@@ -87,10 +89,14 @@ fn mitchell() -> Result<()> {
         &source_domain,
         &target_domain,
     )?;
-    let source_raster: Array2<f64> = ndarray_npy::read_npy("./tests/data/gfs_t2m.npy")?;
-    let target_raster = warper.warp_ignore_nodata(&source_raster)?;
+    let source_raster: Array2<f64> = open_nc_data("./tests/data/gfs_t2m.nc")?;
+    let target_raster = warper.warp_ignore_nodata(&source_raster.view())?;
 
     target_raster.iter().for_each(|&v| assert!(v.is_finite()));
+
+
+    dbg!(target_raster.max()?);
+    dbg!(source_raster.max()?);
 
     assert!(target_raster.max()? <= source_raster.max()?);
     assert!(target_raster.min()? >= source_raster.min()?);
@@ -118,10 +124,10 @@ fn nan_padded_waves() -> Result<()> {
         &target_bounds,
     )?;
 
-    let source_raster: Array2<f64> = ndarray_npy::read_npy("./tests/data/waves_34.npy")?;
+    let source_raster: Array2<f64> = open_nc_data("./tests/data/waves_34.nc")?;
     let source_raster = raster_constant_pad(&source_raster, 3, f64::NAN);
-    let ref_raster: Array2<f64> = ndarray_npy::read_npy("./tests/data/waves_ref.npy")?;
-    let target_raster = warper.warp_ignore_nodata(&source_raster)?;
+    let ref_raster: Array2<f64> = open_nc_data("./tests/data/waves_ref.nc")?;
+    let target_raster = warper.warp_ignore_nodata(&source_raster.view())?;
 
     assert_eq!(target_raster.shape(), ref_raster.shape());
     Zip::from(&target_raster)
@@ -152,7 +158,7 @@ fn invalid_raster_size() -> Result<()> {
     )?;
 
     let source_raster = Array2::zeros((3, 3));
-    let result = warper.warp_ignore_nodata(&source_raster);
+    let result = warper.warp_ignore_nodata(&source_raster.view());
 
     assert!(result.is_err());
 
@@ -190,12 +196,11 @@ fn aeqd_to_lcc() -> Result<()> {
         &target_domain,
     )?;
 
-    let source_raster: Array2<f32> = ndarray_npy::read_npy("./tests/data/aeqd_nan.npy")?;
-    let source_raster = source_raster.mapv(f64::from);
+    let source_raster: Array2<f64> = open_nc_data("./tests/data/aeqd_nan.nc")?;
     let source_raster = raster_constant_pad(&source_raster, 3, f64::NAN);
 
-    let target_raster = warper.warp_ignore_nodata(&source_raster)?;
-    let ref_raster: Array2<f64> = ndarray_npy::read_npy("./tests/data/aeqd_ref.npy")?;
+    let target_raster = warper.warp_ignore_nodata(&source_raster.view())?;
+    let ref_raster: Array2<f64> = open_nc_data("./tests/data/aeqd_ref.nc")?;
 
     assert_eq!(target_raster.shape(), ref_raster.shape());
     Zip::from(&target_raster)

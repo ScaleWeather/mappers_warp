@@ -7,6 +7,9 @@ use mappers::{
 use ndarray::{s, Array2, Zip};
 use notgdalwarp::{CubicBSpline, RasterBounds, Warper};
 
+mod utils;
+use utils::*;
+
 #[test]
 fn waves_unchecked() -> Result<()> {
     let src_proj = LongitudeLatitude;
@@ -27,9 +30,9 @@ fn waves_unchecked() -> Result<()> {
         &target_bounds,
     )?;
 
-    let source_raster: Array2<f64> = ndarray_npy::read_npy("./tests/data/waves_34.npy")?;
-    let ref_raster: Array2<f64> = ndarray_npy::read_npy("./tests/data/waves_ref.npy")?;
-    let target_raster = warper.warp_unchecked(&source_raster);
+    let source_raster: Array2<f64> = open_nc_data("./tests/data/waves_34.nc")?;
+    let ref_raster: Array2<f64> = open_nc_data("./tests/data/waves_ref.nc")?;
+    let target_raster = warper.warp_unchecked(&source_raster.view());
 
     assert_eq!(target_raster.shape(), ref_raster.shape());
     Zip::from(&target_raster)
@@ -59,14 +62,14 @@ fn nan_ignore() -> Result<()> {
         &target_bounds,
     )?;
 
-    let mut source_raster: Array2<f64> = ndarray_npy::read_npy("./tests/data/waves_34.npy")?;
+    let mut source_raster: Array2<f64> = open_nc_data("./tests/data/waves_34.nc")?;
     source_raster.slice_mut(s![13..15, 13..15]).fill(f64::NAN);
     source_raster.slice_mut(s![22..24, 18..20]).fill(f64::NAN);
     source_raster.slice_mut(s![18..25, 19..24]).fill(f64::NAN);
     source_raster.slice_mut(s![13..15, 21..23]).fill(f64::NAN);
 
-    let target_raster = warper.warp_ignore_nodata(&source_raster)?;
-    let ref_raster: Array2<f64> = ndarray_npy::read_npy("./tests/data/waves_nan_ignore_ref.npy")?;
+    let target_raster = warper.warp_ignore_nodata(&source_raster.view())?;
+    let ref_raster: Array2<f64> = open_nc_data("./tests/data/waves_nan_ignore_ref.nc")?;
 
     assert_eq!(target_raster.shape(), ref_raster.shape());
     Zip::from(&target_raster)
@@ -97,9 +100,9 @@ fn nan_reject() -> Result<()> {
     )?;
 
     // should work
-    let source_raster: Array2<f64> = ndarray_npy::read_npy("./tests/data/waves_34.npy")?;
-    let ref_raster: Array2<f64> = ndarray_npy::read_npy("./tests/data/waves_ref.npy")?;
-    let target_raster = warper.warp_reject_nodata(&source_raster)?;
+    let source_raster: Array2<f64> = open_nc_data("./tests/data/waves_34.nc")?;
+    let ref_raster: Array2<f64> = open_nc_data("./tests/data/waves_ref.nc")?;
+    let target_raster = warper.warp_reject_nodata(&source_raster.view())?;
 
     assert_eq!(target_raster.shape(), ref_raster.shape());
     Zip::from(&target_raster)
@@ -107,10 +110,10 @@ fn nan_reject() -> Result<()> {
         .map_collect(|&f, &o| assert_approx_eq!(f64, f, o, epsilon = 1e-6));
 
     // should fail
-    let mut source_raster: Array2<f64> = ndarray_npy::read_npy("./tests/data/waves_34.npy")?;
+    let mut source_raster: Array2<f64> = open_nc_data("./tests/data/waves_34.nc")?;
     source_raster.slice_mut(s![14..15, 18..19]).fill(f64::NAN);
 
-    let target_raster = warper.warp_reject_nodata(&source_raster);
+    let target_raster = warper.warp_reject_nodata(&source_raster.view());
     assert!(target_raster.is_err());
 
     Ok(())
@@ -136,14 +139,14 @@ fn nan_discard() -> Result<()> {
         &target_bounds,
     )?;
 
-    let mut source_raster: Array2<f64> = ndarray_npy::read_npy("./tests/data/waves_34.npy")?;
+    let mut source_raster: Array2<f64> = open_nc_data("./tests/data/waves_34.nc")?;
     source_raster.slice_mut(s![13..15, 13..15]).fill(f64::NAN);
     source_raster.slice_mut(s![22..24, 18..20]).fill(f64::NAN);
     source_raster.slice_mut(s![18..25, 19..24]).fill(f64::NAN);
     source_raster.slice_mut(s![13..15, 21..23]).fill(f64::NAN);
 
-    let target_raster = warper.warp_discard_nodata(&source_raster)?;
-    let ref_raster: Array2<f64> = ndarray_npy::read_npy("./tests/data/waves_nan_discard_ref.npy")?;
+    let target_raster = warper.warp_discard_nodata(&source_raster.view())?;
+    let ref_raster: Array2<f64> = open_nc_data("./tests/data/waves_nan_discard_ref.nc")?;
 
     assert_eq!(target_raster.shape(), ref_raster.shape());
     Zip::from(&target_raster)
@@ -173,12 +176,12 @@ fn non_finite_result() -> Result<()> {
         &target_bounds,
     )?;
 
-    let mut source_raster: Array2<f64> = ndarray_npy::read_npy("./tests/data/waves_34.npy")?;
+    let mut source_raster: Array2<f64> = open_nc_data("./tests/data/waves_34.nc")?;
     source_raster.slice_mut(s![13..15, 21..23]).fill(f64::MAX);
 
-    assert!(warper.warp_discard_nodata(&source_raster).is_err());
-    assert!(warper.warp_reject_nodata(&source_raster).is_err());
-    assert!(warper.warp_ignore_nodata(&source_raster).is_err());
+    assert!(warper.warp_discard_nodata(&source_raster.view()).is_err());
+    assert!(warper.warp_reject_nodata(&source_raster.view()).is_err());
+    assert!(warper.warp_ignore_nodata(&source_raster.view()).is_err());
 
     Ok(())
 }
