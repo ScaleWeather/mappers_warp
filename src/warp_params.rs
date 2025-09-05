@@ -140,13 +140,11 @@ fn compute_src_offsets(clamped_min: IJPair, src_shape: IJPair, kernel_radius: IJ
     let n_src_x_off = clamped_min
         .i
         .saturating_sub(kernel_radius.i)
-        .min(src_shape.i)
-        .max(0);
+        .min(src_shape.i);
     let n_src_y_off = clamped_min
         .j
         .saturating_sub(kernel_radius.j)
-        .min(src_shape.j)
-        .max(0);
+        .min(src_shape.j);
 
     IJPair {
         i: n_src_x_off,

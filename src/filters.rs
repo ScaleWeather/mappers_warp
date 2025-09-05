@@ -20,19 +20,19 @@ impl ResamplingFilter for CubicBSpline {
 
         if xm1 > 0.0 {
             res += -4.0 * xm1 * xm1 * xm1;
-        };
+        }
 
         if x > 0.0 {
             res += 6.0 * x * x * x;
-        };
+        }
 
         if xp1 > 0.0 {
             res += -4.0 * xp1 * xp1 * xp1;
-        };
+        }
 
         if xp2 > 0.0 {
             res += xp2c;
-        };
+        }
 
         res
     }
