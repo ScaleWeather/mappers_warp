@@ -2,7 +2,7 @@
 name = "mappers_warp"
 version = "0.0.7"
 edition = "2021"
-publish = false
+publish = true
 authors = ["Jakub Lewandowski <scaleweather@gmail.com>"]
 description = "Very simplistic tool for reprojecting maps, based on GdalWarp"
 repository = "https://github.com/ScaleWeather/mappers_warp"
