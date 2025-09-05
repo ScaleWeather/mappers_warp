@@ -5,7 +5,7 @@ use mappers::{
     Ellipsoid,
 };
 use ndarray::{Array2, Zip};
-use notgdalwarp::{raster_constant_pad, CubicBSpline, MitchellNetravali, RasterBounds, Warper};
+use mappers_warp::{raster_constant_pad, CubicBSpline, MitchellNetravali, RasterBounds, Warper};
 
 mod utils;
 use utils::*;

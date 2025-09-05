@@ -5,7 +5,7 @@ use mappers::{
     Ellipsoid,
 };
 use ndarray::{s, Array2, Zip};
-use notgdalwarp::{CubicBSpline, RasterBounds, Warper};
+use mappers_warp::{CubicBSpline, RasterBounds, Warper};
 
 mod utils;
 use utils::*;

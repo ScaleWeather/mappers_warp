@@ -43,7 +43,7 @@ impl Warper {
         target_raster
     }
 
-    // From GdalWarp: for bilinear, cubic, cubicspline and lanczos, for each target pixel, the coordinate of its center
+    // From GdalWarp documentation: for bilinear, cubic, cubicspline and lanczos, for each target pixel, the coordinate of its center
     // is projected back to source coordinates and a corresponding source pixel is identified. If this source pixel is invalid,
     // the target pixel is considered as nodata. Given that those resampling kernels have a non-null kernel radius,
     // this source pixel is just one among other several source pixels, and it might be possible that there are invalid

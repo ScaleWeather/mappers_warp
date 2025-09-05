@@ -4,7 +4,7 @@ use mappers::{
     projections::{LambertConformalConic, LongitudeLatitude},
     Ellipsoid,
 };
-use notgdalwarp::{CubicBSpline, RasterBounds, Warper};
+use mappers_warp::{CubicBSpline, RasterBounds, Warper};
 
 pub fn criterion_benchmark(c: &mut Criterion) {
     inner_bench(c).unwrap()

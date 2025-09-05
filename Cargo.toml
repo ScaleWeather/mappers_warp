@@ -1,11 +1,11 @@
 [package]
-name = "notgdalwarp"
-version = "0.0.6"
+name = "mappers_warp"
+version = "0.0.7"
 edition = "2021"
 publish = false
 authors = ["Jakub Lewandowski <scaleweather@gmail.com>"]
-description = "Very simplistic implementation of GdalWarp"
-repository = "https://github.com/ScaleWeather/NotGdalWarp"
+description = "Very simplistic tool for reprojecting maps, based on GdalWarp"
+repository = "https://github.com/ScaleWeather/mappers_warp"
 readme = "README.md"
 categories = ["mathematics", "science"]
 license = "Apache-2.0"
