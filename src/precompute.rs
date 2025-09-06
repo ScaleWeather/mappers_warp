@@ -115,8 +115,9 @@ mod tests {
     use mappers::projections::{LambertConformalConic, LongitudeLatitude};
 
     use crate::{
-        tests::reference_setup, warp_params::WarperParameters, CubicBSpline, IXJYPair,
-        SourceXYPair, TargetXYPair, Warper,
+        tests::{reference_setup, reference_setup_def},
+        warp_params::WarperParameters,
+        CubicBSpline, IXJYPair, SourceXYPair, TargetXYPair, Warper,
     };
 
     use super::precompute_ixs_jys;
@@ -174,7 +175,7 @@ mod tests {
 
     #[test]
     fn internals() -> Result<()> {
-        let (src_bounds, tgt_bounds) = reference_setup()?;
+        let (src_bounds, tgt_bounds) = reference_setup_def()?;
 
         let warper = Warper::initialize::<CubicBSpline, LongitudeLatitude, LambertConformalConic>(
             &src_bounds,

@@ -5,7 +5,7 @@ use mappers::{
     Ellipsoid,
 };
 use ndarray::{s, Array2, Zip};
-use mappers_warp::{CubicBSpline, RasterBounds, Warper};
+use mappers_warp::{CubicBSpline, RasterBoundsDefinition, Warper};
 
 mod utils;
 use utils::*;
@@ -16,8 +16,8 @@ fn waves_unchecked() -> Result<()> {
     let tgt_proj =
         LambertConformalConic::new(80., 24., 12.472955, 35.1728044444444, Ellipsoid::WGS84)?;
 
-    let source_bounds = RasterBounds::new((60.00, 68.25), (31.75, 40.0), 0.25, 0.25, src_proj)?;
-    let target_bounds = RasterBounds::new(
+    let source_bounds = RasterBoundsDefinition::new((60.00, 68.25), (31.75, 40.0), 0.25, 0.25, src_proj)?;
+    let target_bounds = RasterBoundsDefinition::new(
         (2_320_000. - 4_000_000., 2_740_000. - 4_000_000.),
         (5_090_000. - 4_000_000., 5_640_000. - 4_000_000.),
         10_000.,
@@ -48,8 +48,8 @@ fn nan_ignore() -> Result<()> {
     let tgt_proj =
         LambertConformalConic::new(80., 24., 12.472955, 35.1728044444444, Ellipsoid::WGS84)?;
 
-    let source_bounds = RasterBounds::new((60.00, 68.25), (31.75, 40.0), 0.25, 0.25, src_proj)?;
-    let target_bounds = RasterBounds::new(
+    let source_bounds = RasterBoundsDefinition::new((60.00, 68.25), (31.75, 40.0), 0.25, 0.25, src_proj)?;
+    let target_bounds = RasterBoundsDefinition::new(
         (2_320_000. - 4_000_000., 2_740_000. - 4_000_000.),
         (5_090_000. - 4_000_000., 5_640_000. - 4_000_000.),
         10_000.,
@@ -85,8 +85,8 @@ fn nan_reject() -> Result<()> {
     let tgt_proj =
         LambertConformalConic::new(80., 24., 12.472955, 35.1728044444444, Ellipsoid::WGS84)?;
 
-    let source_bounds = RasterBounds::new((60.00, 68.25), (31.75, 40.0), 0.25, 0.25, src_proj)?;
-    let target_bounds = RasterBounds::new(
+    let source_bounds = RasterBoundsDefinition::new((60.00, 68.25), (31.75, 40.0), 0.25, 0.25, src_proj)?;
+    let target_bounds = RasterBoundsDefinition::new(
         (2_320_000. - 4_000_000., 2_740_000. - 4_000_000.),
         (5_090_000. - 4_000_000., 5_640_000. - 4_000_000.),
         10_000.,
@@ -125,8 +125,8 @@ fn nan_discard() -> Result<()> {
     let tgt_proj =
         LambertConformalConic::new(80., 24., 12.472955, 35.1728044444444, Ellipsoid::WGS84)?;
 
-    let source_bounds = RasterBounds::new((60.00, 68.25), (31.75, 40.0), 0.25, 0.25, src_proj)?;
-    let target_bounds = RasterBounds::new(
+    let source_bounds = RasterBoundsDefinition::new((60.00, 68.25), (31.75, 40.0), 0.25, 0.25, src_proj)?;
+    let target_bounds = RasterBoundsDefinition::new(
         (2_320_000. - 4_000_000., 2_740_000. - 4_000_000.),
         (5_090_000. - 4_000_000., 5_640_000. - 4_000_000.),
         10_000.,
@@ -162,8 +162,8 @@ fn non_finite_result() -> Result<()> {
     let tgt_proj =
         LambertConformalConic::new(80., 24., 12.472955, 35.1728044444444, Ellipsoid::WGS84)?;
 
-    let source_bounds = RasterBounds::new((60.00, 68.25), (31.75, 40.0), 0.25, 0.25, src_proj)?;
-    let target_bounds = RasterBounds::new(
+    let source_bounds = RasterBoundsDefinition::new((60.00, 68.25), (31.75, 40.0), 0.25, 0.25, src_proj)?;
+    let target_bounds = RasterBoundsDefinition::new(
         (2_320_000. - 4_000_000., 2_740_000. - 4_000_000.),
         (5_090_000. - 4_000_000., 5_640_000. - 4_000_000.),
         10_000.,

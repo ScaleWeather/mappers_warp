@@ -36,8 +36,10 @@ use crate::{precompute::precompute_ixs_jys, warp_params::WarperParameters};
 pub use filters::{CubicBSpline, MitchellNetravali, ResamplingFilter};
 #[cfg(feature = "io")]
 pub use helpers::WarperIOError;
-pub use helpers::{raster_constant_pad, GenericXYPair, RasterBounds, WarperError};
-pub(crate) use helpers::{IJPair, IXJYPair, MinMaxPair, SourceXYPair, TargetXYPair};
+pub use helpers::{raster_constant_pad, RasterBoundsDefinition, WarperError};
+pub(crate) use helpers::{
+    GenericXYPair, IJPair, IXJYPair, MinMaxPair, RasterBounds, SourceXYPair, TargetXYPair,
+};
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "io", derive(Serialize, Deserialize))]
@@ -92,14 +94,16 @@ impl TryFrom<WarperCompatIO> for Warper {
 
 impl Warper {
     pub fn initialize<F: ResamplingFilter, SP: Projection, TP: Projection>(
-        source_bounds: &RasterBounds<SP, GenericXYPair>,
-        target_bounds: &RasterBounds<TP, GenericXYPair>,
+        source_bounds: &RasterBoundsDefinition<SP>,
+        target_bounds: &RasterBoundsDefinition<TP>,
     ) -> Result<Self, WarperError> {
-        let source_bounds = &source_bounds.cast_xy_pairs::<SourceXYPair>();
-        let target_bounds = &target_bounds.cast_xy_pairs::<TargetXYPair>();
+        let source_bounds =
+            RasterBounds::<SP, GenericXYPair>::from(source_bounds).cast_xy_pairs::<SourceXYPair>();
+        let target_bounds =
+            RasterBounds::<TP, GenericXYPair>::from(target_bounds).cast_xy_pairs::<TargetXYPair>();
 
-        let params = WarperParameters::compute::<F, SP, TP>(source_bounds, target_bounds)?;
-        let tgt_ixs_jys = precompute_ixs_jys(source_bounds, target_bounds)?;
+        let params = WarperParameters::compute::<F, SP, TP>(&source_bounds, &target_bounds)?;
+        let tgt_ixs_jys = precompute_ixs_jys(&source_bounds, &target_bounds)?;
         let internals = precompute::precompute_internals::<F>(&tgt_ixs_jys, &params);
         let source_shape = (
             source_bounds.shape.j as usize,
@@ -134,7 +138,7 @@ impl Warper {
 }
 
 #[cfg(test)]
-pub mod tests {
+pub(crate) mod tests {
     #[cfg(feature = "io")]
     use crate::{filters::CubicBSpline, Warper};
     use anyhow::Result;
@@ -145,11 +149,11 @@ pub mod tests {
     #[cfg(feature = "io")]
     use std::fs;
 
-    use crate::{GenericXYPair, RasterBounds};
+    use crate::{GenericXYPair, RasterBounds, RasterBoundsDefinition};
 
-    pub fn reference_setup() -> Result<(
-        RasterBounds<LongitudeLatitude, GenericXYPair>,
-        RasterBounds<LambertConformalConic, GenericXYPair>,
+    pub(crate) fn reference_setup_def() -> Result<(
+        RasterBoundsDefinition<LongitudeLatitude>,
+        RasterBoundsDefinition<LambertConformalConic>,
     )> {
         let source_projection = LongitudeLatitude;
         let target_projections = LambertConformalConic::new(
@@ -160,10 +164,15 @@ pub mod tests {
             Ellipsoid::WGS84,
         )?;
 
-        let source_bounds =
-            RasterBounds::new((60.00, 67.75), (32.25, 40.0), 0.25, 0.25, source_projection)?;
+        let source_bounds = RasterBoundsDefinition::new(
+            (60.00, 67.75),
+            (32.25, 40.0),
+            0.25,
+            0.25,
+            source_projection,
+        )?;
 
-        let target_bounds = RasterBounds::new(
+        let target_bounds = RasterBoundsDefinition::new(
             (2_320_000. - 4_000_000., 2_740_000. - 4_000_000.),
             (5_090_000. - 4_000_000., 5_640_000. - 4_000_000.),
             10_000.,
@@ -174,10 +183,18 @@ pub mod tests {
         Ok((source_bounds, target_bounds))
     }
 
+    pub(crate) fn reference_setup() -> Result<(
+        RasterBounds<LongitudeLatitude, GenericXYPair>,
+        RasterBounds<LambertConformalConic, GenericXYPair>,
+    )> {
+        let (source_bounds, target_bounds) = reference_setup_def()?;
+        Ok((source_bounds.into(), target_bounds.into()))
+    }
+
     #[cfg(feature = "io")]
     #[test]
     fn io() -> Result<()> {
-        let (src_bounds, tgt_bounds) = reference_setup()?;
+        let (src_bounds, tgt_bounds) = reference_setup_def()?;
         let warper = Warper::initialize::<CubicBSpline, LongitudeLatitude, LambertConformalConic>(
             &src_bounds,
             &tgt_bounds,
