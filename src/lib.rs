@@ -30,10 +30,6 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 #[cfg(feature = "io")]
 use std::fs::File;
-#[cfg(feature = "io")]
-use std::io::{BufReader, BufWriter};
-#[cfg(feature = "io")]
-use std::path::Path;
 
 use crate::{precompute::precompute_ixs_jys, warp_params::WarperParameters};
 
@@ -46,17 +42,52 @@ pub(crate) use helpers::{IJPair, IXJYPair, MinMaxPair, SourceXYPair, TargetXYPai
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "io", derive(Serialize, Deserialize))]
 struct ResamplingKernelInternals {
-    pub anchor_idx: (u32, u32),
+    pub anchor_idx: (usize, usize),
     pub x_weights: [f64; 4],
     pub y_weights: [f64; 4],
 }
 
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "io", derive(Serialize, Deserialize))]
 pub struct Warper {
-    // uses ndarray convention [y, x]
-    source_shape: [u32; 2],
+    /// uses ndarray convention [y, x]
+    source_shape: (usize, usize),
+    /// internals are in a shape of target raster
     internals: Array2<ResamplingKernelInternals>,
+}
+
+/// Warper uses ndarray which implements unsafe methods.
+/// From clippy: Deriving `serde::Deserialize` will create a constructor that may violate invariants held by another constructor.
+/// This Wrapper prevents deriving `Deserialize` for type with usafe methods.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "io", derive(Serialize, Deserialize))]
+#[cfg(feature = "io")]
+struct WarperCompatIO {
+    source_shape: (usize, usize),
+    target_shape: (usize, usize),
+    internals: Vec<ResamplingKernelInternals>,
+}
+
+#[cfg(feature = "io")]
+impl From<Warper> for WarperCompatIO {
+    fn from(warper_lib: Warper) -> Self {
+        Self {
+            source_shape: warper_lib.source_shape,
+            target_shape: warper_lib.internals.dim(),
+            internals: warper_lib.internals.into_flat().to_vec(),
+        }
+    }
+}
+
+#[cfg(feature = "io")]
+impl TryFrom<WarperCompatIO> for Warper {
+    type Error = ndarray::ShapeError;
+
+    fn try_from(warper_io: WarperCompatIO) -> Result<Self, Self::Error> {
+        Ok(Self {
+            source_shape: warper_io.source_shape,
+            internals: Array2::from_shape_vec(warper_io.target_shape, warper_io.internals)?,
+        })
+    }
 }
 
 impl Warper {
@@ -70,7 +101,10 @@ impl Warper {
         let params = WarperParameters::compute::<F, SP, TP>(source_bounds, target_bounds)?;
         let tgt_ixs_jys = precompute_ixs_jys(source_bounds, target_bounds)?;
         let internals = precompute::precompute_internals::<F>(&tgt_ixs_jys, &params);
-        let source_shape = [source_bounds.shape.j, source_bounds.shape.i];
+        let source_shape = (
+            source_bounds.shape.j as usize,
+            source_bounds.shape.i as usize,
+        );
 
         Ok(Self {
             source_shape,
@@ -79,25 +113,23 @@ impl Warper {
     }
 
     #[cfg(feature = "io")]
-    pub fn save_to_file(&self, path: &str) -> Result<(), WarperIOError> {
-        let path = Path::new(path);
-        let file = File::create(path)?;
-        let mut buf = BufWriter::new(file);
+    pub fn save_to_file(self, path: &str) -> Result<(), WarperIOError> {
+        let mut file = File::create(path)?;
+        let object = WarperCompatIO::from(self);
 
-        bincode::serialize_into(&mut buf, &self)?;
+        bincode::serde::encode_into_std_write(object, &mut file, bincode::config::standard())?;
 
         Ok(())
     }
 
     #[cfg(feature = "io")]
     pub fn load_from_file(path: &str) -> Result<Self, WarperIOError> {
-        let path = Path::new(path);
-        let file = File::open(path)?;
-        let mut buf = BufReader::new(file);
+        let mut file = File::open(path)?;
 
-        let warper: Self = bincode::deserialize_from(&mut buf)?;
+        let warper: WarperCompatIO =
+            bincode::serde::decode_from_std_read(&mut file, bincode::config::standard())?;
 
-        Ok(warper)
+        Ok(warper.try_into()?)
     }
 }
 
@@ -151,7 +183,9 @@ pub mod tests {
             &tgt_bounds,
         )?;
 
-        warper.save_to_file("./tests/data/saved-warper.dat")?;
+        warper
+            .clone()
+            .save_to_file("./tests/data/saved-warper.dat")?;
 
         let loaded = Warper::load_from_file("./tests/data/saved-warper.dat")?;
 

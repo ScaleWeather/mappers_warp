@@ -64,8 +64,8 @@ pub(crate) fn precompute_internals<F: ResamplingFilter>(
     // but ixs, yjs are measured from the edge corner
     tgt_ixs_jys.map(|&crds| {
         let anchor_idx = (
-            (crds.ix - 0.5).floor() as u32,
-            (crds.jy - 0.5).floor() as u32,
+            (crds.ix - 0.5).floor() as usize,
+            (crds.jy - 0.5).floor() as usize,
         );
 
         let delta = compute_deltas(&crds, params);

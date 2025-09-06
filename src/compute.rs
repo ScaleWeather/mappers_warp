@@ -12,8 +12,8 @@ impl Warper {
 
         let target_raster = self.internals.map(|intr| {
             let values = source_raster.slice(s![
-                (intr.anchor_idx.1 - 1) as usize..(intr.anchor_idx.1 + 3) as usize,
-                (intr.anchor_idx.0 - 1) as usize..(intr.anchor_idx.0 + 3) as usize
+                (intr.anchor_idx.1 - 1)..(intr.anchor_idx.1 + 3),
+                (intr.anchor_idx.0 - 1)..(intr.anchor_idx.0 + 3)
             ]);
 
             let mut weight_accum = 0.0;
@@ -55,8 +55,8 @@ impl Warper {
     ) -> Result<Array2<f64>, WarperError> {
         let source_raster: ArrayView2<f64> = source_raster.into();
 
-        if source_raster.shape()[0] != self.source_shape[0] as usize
-            || source_raster.shape()[1] != self.source_shape[1] as usize
+        if source_raster.dim().0 != self.source_shape.0
+            || source_raster.dim().1 != self.source_shape.1
         {
             return Err(WarperError::InvalidRasterDimensions);
         }
@@ -67,8 +67,8 @@ impl Warper {
             .and(&self.internals)
             .fold_while(Ok(()), |_, v, intr| {
                 let values = source_raster.slice(s![
-                    (intr.anchor_idx.1 - 1) as usize..(intr.anchor_idx.1 + 3) as usize,
-                    (intr.anchor_idx.0 - 1) as usize..(intr.anchor_idx.0 + 3) as usize
+                    (intr.anchor_idx.1 - 1)..(intr.anchor_idx.1 + 3),
+                    (intr.anchor_idx.0 - 1)..(intr.anchor_idx.0 + 3)
                 ]);
 
                 let mut weight_accum = 0.0;
@@ -119,8 +119,8 @@ impl Warper {
     ) -> Result<Array2<f64>, WarperError> {
         let source_raster: ArrayView2<f64> = source_raster.into();
 
-        if source_raster.shape()[0] != self.source_shape[0] as usize
-            || source_raster.shape()[1] != self.source_shape[1] as usize
+        if source_raster.dim().0 != self.source_shape.0
+            || source_raster.dim().1 != self.source_shape.1
         {
             return Err(WarperError::InvalidRasterDimensions);
         }
@@ -131,8 +131,8 @@ impl Warper {
             .and(&self.internals)
             .fold_while(Ok(()), |_, v, intr| {
                 let values = source_raster.slice(s![
-                    (intr.anchor_idx.1 - 1) as usize..(intr.anchor_idx.1 + 3) as usize,
-                    (intr.anchor_idx.0 - 1) as usize..(intr.anchor_idx.0 + 3) as usize
+                    (intr.anchor_idx.1 - 1)..(intr.anchor_idx.1 + 3),
+                    (intr.anchor_idx.0 - 1)..(intr.anchor_idx.0 + 3)
                 ]);
 
                 let mut weight_accum = 0.0;
@@ -179,8 +179,8 @@ impl Warper {
     ) -> Result<Array2<f64>, WarperError> {
         let source_raster: ArrayView2<f64> = source_raster.into();
 
-        if source_raster.shape()[0] != self.source_shape[0] as usize
-            || source_raster.shape()[1] != self.source_shape[1] as usize
+        if source_raster.dim().0 != self.source_shape.0
+            || source_raster.dim().1 != self.source_shape.1
         {
             return Err(WarperError::InvalidRasterDimensions);
         }
@@ -191,8 +191,8 @@ impl Warper {
             .and(&self.internals)
             .fold_while(Ok(()), |_, v, intr| {
                 let values = source_raster.slice(s![
-                    (intr.anchor_idx.1 - 1) as usize..(intr.anchor_idx.1 + 3) as usize,
-                    (intr.anchor_idx.0 - 1) as usize..(intr.anchor_idx.0 + 3) as usize
+                    (intr.anchor_idx.1 - 1)..(intr.anchor_idx.1 + 3),
+                    (intr.anchor_idx.0 - 1)..(intr.anchor_idx.0 + 3)
                 ]);
 
                 let mut weight_accum = 0.0;

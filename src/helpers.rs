@@ -30,8 +30,14 @@ pub enum WarperIOError {
     #[error("IO error {0}")]
     IoError(#[from] std::io::Error),
 
-    #[error("Bincode error {0}")]
-    BincodeError(#[from] bincode::Error),
+    #[error("Bincode decoding error {0}")]
+    BincodeDecodeError(#[from] bincode::error::DecodeError),
+
+    #[error("Bincode encoding error {0}")]
+    BincodeEncodeError(#[from] bincode::error::EncodeError),
+
+    #[error("Ndarray error {0}")]
+    NdarrayError(#[from] ndarray::ShapeError),
 }
 
 pub trait XYPair: Debug + Clone + Copy + PartialEq + PartialOrd {}
