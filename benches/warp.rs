@@ -39,6 +39,15 @@ pub fn inner_bench(c: &mut Criterion) -> Result<()> {
         data
     };
 
+    c.bench_function("initialize", |b| {
+        b.iter(|| {
+            Warper::initialize::<CubicBSpline, LongitudeLatitude, LambertConformalConic>(
+                black_box(&source_domain),
+                black_box(&target_domain),
+            )
+        })
+    });
+
     c.bench_function("warp_unchecked", |b| {
         b.iter(|| warper.warp_unchecked(black_box(&source_raster)))
     });
