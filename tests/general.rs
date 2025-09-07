@@ -1,11 +1,11 @@
 use anyhow::Result;
 use float_cmp::assert_approx_eq;
 use mappers::{
-    projections::{AzimuthalEquidistant, LambertConformalConic, LongitudeLatitude},
     Ellipsoid,
+    projections::{AzimuthalEquidistant, LambertConformalConic, LongitudeLatitude},
 };
 use mappers_warp::{
-    raster_constant_pad, CubicBSpline, MitchellNetravali, RasterBoundsDefinition, Warper,
+    CubicBSpline, MitchellNetravali, RasterBoundsDefinition, Warper, raster_constant_pad,
 };
 use ndarray::{Array2, Zip};
 

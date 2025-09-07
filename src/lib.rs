@@ -36,10 +36,10 @@ use crate::{precompute::precompute_ixs_jys, warp_params::WarperParameters};
 pub use filters::{CubicBSpline, MitchellNetravali, ResamplingFilter};
 #[cfg(feature = "io")]
 pub use helpers::WarperIOError;
-pub use helpers::{raster_constant_pad, RasterBoundsDefinition, WarperError};
 pub(crate) use helpers::{
     GenericXYPair, IJPair, IXJYPair, MinMaxPair, RasterBounds, SourceXYPair, TargetXYPair,
 };
+pub use helpers::{RasterBoundsDefinition, WarperError, raster_constant_pad};
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "io", derive(Serialize, Deserialize))]
@@ -140,11 +140,11 @@ impl Warper {
 #[cfg(test)]
 pub(crate) mod tests {
     #[cfg(feature = "io")]
-    use crate::{filters::CubicBSpline, Warper};
+    use crate::{Warper, filters::CubicBSpline};
     use anyhow::Result;
     use mappers::{
-        projections::{LambertConformalConic, LongitudeLatitude},
         Ellipsoid,
+        projections::{LambertConformalConic, LongitudeLatitude},
     };
     #[cfg(feature = "io")]
     use std::fs;

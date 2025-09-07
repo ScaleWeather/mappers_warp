@@ -1,5 +1,5 @@
 use mappers::Projection;
-use ndarray::{s, Array2};
+use ndarray::{Array2, s};
 use std::fmt::Debug;
 use thiserror::Error;
 

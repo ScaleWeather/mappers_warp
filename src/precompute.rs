@@ -2,8 +2,8 @@ use mappers::Projection;
 use ndarray::Array2;
 
 use crate::{
-    helpers::GenericXYPair, warp_params::WarperParameters, IXJYPair, RasterBounds,
-    ResamplingFilter, ResamplingKernelInternals, SourceXYPair, TargetXYPair, WarperError,
+    IXJYPair, RasterBounds, ResamplingFilter, ResamplingKernelInternals, SourceXYPair,
+    TargetXYPair, WarperError, helpers::GenericXYPair, warp_params::WarperParameters,
 };
 
 pub(crate) fn precompute_ixs_jys<SP: Projection, TP: Projection>(
@@ -115,9 +115,9 @@ mod tests {
     use mappers::projections::{LambertConformalConic, LongitudeLatitude};
 
     use crate::{
+        CubicBSpline, IXJYPair, SourceXYPair, TargetXYPair, Warper,
         tests::{reference_setup, reference_setup_def},
         warp_params::WarperParameters,
-        CubicBSpline, IXJYPair, SourceXYPair, TargetXYPair, Warper,
     };
 
     use super::precompute_ixs_jys;

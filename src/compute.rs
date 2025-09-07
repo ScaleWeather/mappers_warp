@@ -1,4 +1,4 @@
-use ndarray::{s, Array2, ArrayView2, FoldWhile, Zip};
+use ndarray::{Array2, ArrayView2, FoldWhile, Zip, s};
 
 use crate::{Warper, WarperError};
 

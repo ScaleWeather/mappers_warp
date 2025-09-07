@@ -1,5 +1,5 @@
 use mappers::{ConversionPipe, Projection};
-use ndarray::{concatenate, stack, Array, Axis};
+use ndarray::{Array, Axis, concatenate, stack};
 
 use crate::{
     GenericXYPair, IJPair, IXJYPair, MinMaxPair, RasterBounds, ResamplingFilter, SourceXYPair,
@@ -228,8 +228,8 @@ mod tests {
 
     use super::{compute_clamped_extrema, compute_target_outer_extrema};
     use crate::{
-        tests::reference_setup, warp_params::compute_offsets_and_scales, CubicBSpline, IJPair,
-        ResamplingFilter, SourceXYPair, TargetXYPair,
+        CubicBSpline, IJPair, ResamplingFilter, SourceXYPair, TargetXYPair, tests::reference_setup,
+        warp_params::compute_offsets_and_scales,
     };
 
     #[test]

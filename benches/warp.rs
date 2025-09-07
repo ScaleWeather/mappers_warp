@@ -1,8 +1,8 @@
 use anyhow::{Context, Result};
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 use mappers::{
-    projections::{LambertConformalConic, LongitudeLatitude},
     Ellipsoid,
+    projections::{LambertConformalConic, LongitudeLatitude},
 };
 use mappers_warp::{CubicBSpline, RasterBoundsDefinition, Warper};
 use std::hint::black_box;
@@ -15,7 +15,8 @@ pub fn inner_bench(c: &mut Criterion) -> Result<()> {
     let src_proj = LongitudeLatitude;
     let eu_proj = LambertConformalConic::new(10.0, 52.0, 35.0, 65.0, Ellipsoid::WGS84)?;
 
-    let source_domain = RasterBoundsDefinition::new((-70.0, 85.0), (17.0, 77.0), 0.25, 0.25, src_proj)?;
+    let source_domain =
+        RasterBoundsDefinition::new((-70.0, 85.0), (17.0, 77.0), 0.25, 0.25, src_proj)?;
     let target_domain = RasterBoundsDefinition::new(
         (-4_120_000., 3_490_000.),
         (-2_750_000., 2_640_000.),
