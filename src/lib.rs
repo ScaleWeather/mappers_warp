@@ -21,6 +21,7 @@ mod filters;
 mod helpers;
 mod precompute;
 mod warp_params;
+mod burn_compute;
 
 use std::fmt::Debug;
 #[cfg(feature = "io")]

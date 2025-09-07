@@ -40,6 +40,11 @@ pub fn inner_bench(c: &mut Criterion) -> Result<()> {
         data
     };
 
+    c.bench_function("warp_gpu_unchecked", |b| {
+        b.iter(|| warper.warp_gpu_unchecked(black_box(&source_raster)))
+    });
+
+
     c.bench_function("initialize", |b| {
         b.iter(|| {
             Warper::initialize::<CubicBSpline, LongitudeLatitude, LambertConformalConic>(

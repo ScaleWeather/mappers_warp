@@ -22,6 +22,14 @@ serde = { version = "1.0", default-features = false, optional = true, features =
     "derive",
 ] }
 mappers = { version = "0.7", default-features = false }
+burn = { version = "0.18", default-features = false, features = [
+    "cuda",
+    "ndarray",
+    "std",
+    "fusion",
+    "autotune",
+] }
+
 
 [dev-dependencies]
 float-cmp = { version = "0.10" }
