@@ -1,6 +1,7 @@
+use std::fmt::Debug;
+
 use mappers::Projection;
 use ndarray::{Array2, s};
-use std::fmt::Debug;
 use thiserror::Error;
 
 #[derive(Error, Debug)]

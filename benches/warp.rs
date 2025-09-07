@@ -1,3 +1,5 @@
+use std::hint::black_box;
+
 use anyhow::{Context, Result};
 use criterion::{Criterion, criterion_group, criterion_main};
 use mappers::{
@@ -5,7 +7,6 @@ use mappers::{
     projections::{LambertConformalConic, LongitudeLatitude},
 };
 use mappers_warp::{CubicBSpline, RasterBoundsDefinition, Warper};
-use std::hint::black_box;
 
 pub fn criterion_benchmark(c: &mut Criterion) {
     inner_bench(c).unwrap()

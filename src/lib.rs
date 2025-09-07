@@ -22,16 +22,9 @@ mod helpers;
 mod precompute;
 mod warp_params;
 
-use mappers::Projection;
-use ndarray::Array2;
-
-#[cfg(feature = "io")]
-use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 #[cfg(feature = "io")]
 use std::fs::File;
-
-use crate::{precompute::precompute_ixs_jys, warp_params::WarperParameters};
 
 pub use filters::{CubicBSpline, MitchellNetravali, ResamplingFilter};
 #[cfg(feature = "io")]
@@ -40,6 +33,12 @@ pub(crate) use helpers::{
     GenericXYPair, IJPair, IXJYPair, MinMaxPair, RasterBounds, SourceXYPair, TargetXYPair,
 };
 pub use helpers::{RasterBoundsDefinition, WarperError, raster_constant_pad};
+use mappers::Projection;
+use ndarray::Array2;
+#[cfg(feature = "io")]
+use serde::{Deserialize, Serialize};
+
+use crate::{precompute::precompute_ixs_jys, warp_params::WarperParameters};
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "io", derive(Serialize, Deserialize))]
@@ -140,16 +139,17 @@ impl Warper {
 #[cfg(test)]
 pub(crate) mod tests {
     #[cfg(feature = "io")]
-    use crate::{Warper, filters::CubicBSpline};
+    use std::fs;
+
     use anyhow::Result;
     use mappers::{
         Ellipsoid,
         projections::{LambertConformalConic, LongitudeLatitude},
     };
-    #[cfg(feature = "io")]
-    use std::fs;
 
     use crate::{GenericXYPair, RasterBounds, RasterBoundsDefinition};
+    #[cfg(feature = "io")]
+    use crate::{Warper, filters::CubicBSpline};
 
     pub(crate) fn reference_setup_def() -> Result<(
         RasterBoundsDefinition<LongitudeLatitude>,

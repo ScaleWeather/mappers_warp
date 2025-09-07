@@ -114,13 +114,12 @@ mod tests {
     use float_cmp::assert_approx_eq;
     use mappers::projections::{LambertConformalConic, LongitudeLatitude};
 
+    use super::precompute_ixs_jys;
     use crate::{
         CubicBSpline, IXJYPair, SourceXYPair, TargetXYPair, Warper,
         tests::{reference_setup, reference_setup_def},
         warp_params::WarperParameters,
     };
-
-    use super::precompute_ixs_jys;
 
     #[test]
     fn ix_jy() -> Result<()> {
