@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 
+use cubecl::prelude::*;
 use mappers::Projection;
 use ndarray::{Array2, s};
 use thiserror::Error;
@@ -58,7 +59,7 @@ impl From<GenericXYPair> for TargetXYPair {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, CubeType, CubeLaunch)]
 pub(crate) struct GenericXYPair {
     pub x: f64,
     pub y: f64,
@@ -77,13 +78,13 @@ pub(crate) struct TargetXYPair {
 }
 
 /// Floating indexes in the source raster
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, CubeType, CubeLaunch)]
 pub(crate) struct IXJYPair {
     pub ix: f64,
     pub jy: f64,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, CubeType, CubeLaunch)]
 pub(crate) struct IJPair {
     pub i: u32,
     pub j: u32,

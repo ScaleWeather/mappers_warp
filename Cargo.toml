@@ -18,7 +18,7 @@ bincode = { version = "2.0", default-features = false, optional = true, features
     "std",
     "serde",
 ] }
-serde = { version = "1.0", default-features = false, optional = true, features = [
+serde = { version = "1.0", default-features = false, features = [
     "derive",
 ] }
 mappers = { version = "0.7", default-features = false }
@@ -33,7 +33,7 @@ criterion = { version = "0.7" }
 
 [features]
 default = []
-io = ["ndarray/serde", "bincode", "serde"]
+io = ["ndarray/serde", "bincode"]
 
 [[bench]]
 name = "warp"
