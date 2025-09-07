@@ -22,6 +22,7 @@ serde = { version = "1.0", default-features = false, optional = true, features =
     "derive",
 ] }
 mappers = { version = "0.7", default-features = false }
+zorder = { version = "0.2", default-features = false, features = ["std"] }
 
 [dev-dependencies]
 float-cmp = { version = "0.10" }
@@ -33,6 +34,14 @@ criterion = { version = "0.7" }
 [features]
 default = []
 io = ["ndarray/serde", "bincode", "serde"]
+
+# Small amount of optimization for your package in `dev` mode.
+[profile.dev]
+opt-level = 1
+
+# Compile `zorder` with high optimization.
+[profile.dev.package.zorder]
+opt-level = 3
 
 [[bench]]
 name = "warp"

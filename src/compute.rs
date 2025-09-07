@@ -1,6 +1,7 @@
-use ndarray::{s, Array2, ArrayView2, FoldWhile, Zip};
+use ndarray::{Array2, ArrayView2, FoldWhile, Zip, arr2, s};
 
 use crate::{Warper, WarperError};
+use zorder::bmi2::{HardwareSupportToken, index_of};
 
 impl Warper {
     #[must_use]
@@ -15,6 +16,73 @@ impl Warper {
                 (intr.anchor_idx.1 - 1)..(intr.anchor_idx.1 + 3),
                 (intr.anchor_idx.0 - 1)..(intr.anchor_idx.0 + 3)
             ]);
+
+            let mut weight_accum = 0.0;
+            let mut result_accum = 0.0;
+
+            for j in 0..4 {
+                let mut inner_weight_accum = 0.0;
+                let mut inner_result_accum = 0.0;
+
+                for i in 0..4 {
+                    let value = values[[j, i]];
+                    let x_weight = intr.x_weights[i];
+
+                    inner_weight_accum += x_weight;
+                    inner_result_accum += x_weight * value;
+                }
+
+                let y_weight = intr.y_weights[j];
+
+                weight_accum += inner_weight_accum * y_weight;
+                result_accum += inner_result_accum * y_weight;
+            }
+
+            result_accum / weight_accum
+        });
+
+        target_raster
+    }
+
+    #[must_use]
+    pub fn warp_unchecked_zorder<'a, A: Into<ArrayView2<'a, f64>>>(
+        &self,
+        source_raster: A,
+    ) -> Array2<f64> {
+        let support_token = HardwareSupportToken::new().unwrap();
+
+        let src_xs = arr2(&[
+            [-1_i32, 0, 1, 2],
+            [-1, 0, 1, 2],
+            [-1, 0, 1, 2],
+            [-1, 0, 1, 2],
+        ]);
+
+        let src_ys = arr2(&[
+            [-1_i32, -1, -1, -1],
+            [0, 0, 0, 0],
+            [1, 1, 1, 1],
+            [2, 2, 2, 2],
+        ]);
+
+        let source_raster: ArrayView2<f64> = source_raster.into();
+        let shp = source_raster.dim();
+        let max_morton = index_of([(shp.0 - 1) as u16, (shp.1 - 1) as u16], support_token);
+        let mut source_morton = vec![0.0; max_morton as usize + 1];
+        source_raster.indexed_iter().for_each(|((j, i), v)| {
+            let idx = index_of([i as u16, j as u16], support_token) as usize;
+            source_morton[idx] = *v;
+        });
+
+        let target_raster = self.internals.map(|intr| {
+            let src_shifted_xs = &src_xs + intr.anchor_idx.0 as i32;
+            let src_shifted_ys = &src_ys + intr.anchor_idx.1 as i32;
+
+            let src_idxs = Zip::from(&src_shifted_xs)
+                .and(&src_shifted_ys)
+                .map_collect(|&x, &y| index_of([x as u16, y as u16], support_token));
+
+            let values = src_idxs.map(|&idx| source_morton[idx as usize]);
 
             let mut weight_accum = 0.0;
             let mut result_accum = 0.0;
