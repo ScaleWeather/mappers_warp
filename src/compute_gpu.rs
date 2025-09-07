@@ -17,6 +17,15 @@ pub(super) struct WarperParametersGPU {
     pub offsets: IJPair,
 }
 
+impl From<WarperParameters> for WarperParametersGPU {
+    fn from(params: WarperParameters) -> Self {
+        Self {
+            scales: params.scales,
+            offsets: params.offsets,
+        }
+    }
+}
+
 impl Warper {
     pub fn warp_unchecked_gpu<
         'a,
@@ -39,6 +48,8 @@ impl Warper {
         let params =
             WarperParameters::compute::<F, SP, TP>(&source_bounds, &target_bounds).unwrap();
         let tgt_ixs_jys = precompute_ixs_jys(&source_bounds, &target_bounds).unwrap();
+
+        let params = WarperParametersGPU::from(params);
 
         todo!()
     }
@@ -106,8 +117,8 @@ fn precompute_internals<F: ResamplingFilterGPU>(
 
         for i in 0..4 {
             let value = {
-                let x = i - 1;
-                let y = j - 1;
+                let x = anchor_idx.0 + (i - 1);
+                let y = anchor_idx.1 + (j - 1);
                 let idx = (y * source_raster.stride(1)) + x;
                 source_raster[idx]
             };
