@@ -70,21 +70,17 @@ pub(crate) fn precompute_internals<F: ResamplingFilter>(
 
         let delta = compute_deltas(&crds, params);
 
-        let x_weights = [-1., 0., 1., 2.].map(|i| {
-            if params.scales.x < 1.0 {
-                F::apply((i - delta.x) * params.scales.x)
-            } else {
-                F::apply(i - delta.x)
-            }
-        });
+        let x_weights = if params.scales.x < 1.0 {
+            [-1., 0., 1., 2.].map(|i| F::apply((i - delta.x) * params.scales.x))
+        } else {
+            [-1., 0., 1., 2.].map(|i| F::apply(i - delta.x))
+        };
 
-        let y_weights = [-1., 0., 1., 2.].map(|j| {
-            if params.scales.y < 1.0 {
-                F::apply((j - delta.y) * params.scales.y)
-            } else {
-                F::apply(j - delta.y)
-            }
-        });
+        let y_weights = if params.scales.y < 1.0 {
+            [-1., 0., 1., 2.].map(|j| F::apply((j - delta.y) * params.scales.y))
+        } else {
+            [-1., 0., 1., 2.].map(|j| F::apply(j - delta.y))
+        };
 
         ResamplingKernelInternals {
             anchor_idx,
