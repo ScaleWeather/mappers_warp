@@ -52,9 +52,15 @@ fn precompute_internals<F: ResamplingFilterGPU>(
     result: &mut Tensor<f64>,
     params: &WarperParametersGPU,
 ) {
+    if ABSOLUTE_POS_X >= result.shape(1) || ABSOLUTE_POS_Y >= result.shape(0) {
+        terminate!()
+    }
+
+    let target_raster_index = (ABSOLUTE_POS_Y * result.stride(1)) + ABSOLUTE_POS_X;
+
     let crds = IXJYPair {
-        ix: tgt_ixs[0],
-        jy: tgt_jys[0],
+        ix: tgt_ixs[target_raster_index],
+        jy: tgt_jys[target_raster_index],
     };
 
     let anchor_idx: (f64, f64) = (Floor::floor(crds.ix - 0.5), Floor::floor(crds.jy - 0.5));
@@ -99,7 +105,12 @@ fn precompute_internals<F: ResamplingFilterGPU>(
         let mut inner_result_accum = <f64 as Float>::new(0.0);
 
         for i in 0..4 {
-            let value = source_raster[0];
+            let value = {
+                let x = i - 1;
+                let y = j - 1;
+                let idx = (y * source_raster.stride(1)) + x;
+                source_raster[idx]
+            };
             let x_weight = x_weights[i];
 
             inner_weight_accum += x_weight;
@@ -112,5 +123,5 @@ fn precompute_internals<F: ResamplingFilterGPU>(
         result_accum += inner_result_accum * y_weight;
     }
 
-    result[0] = result_accum / weight_accum;
+    result[target_raster_index] = result_accum / weight_accum;
 }
