@@ -43,6 +43,46 @@ impl Warper {
         target_raster
     }
 
+    #[must_use]
+    pub fn warp_unchecked_mt<'a, A: Into<ArrayView2<'a, f64>>>(
+        &self,
+        source_raster: A,
+    ) -> Array2<f64> {
+        let source_raster: ArrayView2<f64> = source_raster.into();
+
+        let target_raster = Zip::from(&self.internals).par_map_collect(|intr| {
+            let values = source_raster.slice(s![
+                (intr.anchor_idx.1 - 1)..(intr.anchor_idx.1 + 3),
+                (intr.anchor_idx.0 - 1)..(intr.anchor_idx.0 + 3)
+            ]);
+
+            let mut weight_accum = 0.0;
+            let mut result_accum = 0.0;
+
+            for j in 0..4 {
+                let mut inner_weight_accum = 0.0;
+                let mut inner_result_accum = 0.0;
+
+                for i in 0..4 {
+                    let value = values[[j, i]];
+                    let x_weight = intr.x_weights[i];
+
+                    inner_weight_accum += x_weight;
+                    inner_result_accum += x_weight * value;
+                }
+
+                let y_weight = intr.y_weights[j];
+
+                weight_accum += inner_weight_accum * y_weight;
+                result_accum += inner_result_accum * y_weight;
+            }
+
+            result_accum / weight_accum
+        });
+
+        target_raster
+    }
+
     // From GdalWarp documentation: for bilinear, cubic, cubicspline and lanczos, for each target pixel, the coordinate of its center
     // is projected back to source coordinates and a corresponding source pixel is identified. If this source pixel is invalid,
     // the target pixel is considered as nodata. Given that those resampling kernels have a non-null kernel radius,
