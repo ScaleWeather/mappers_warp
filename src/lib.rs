@@ -21,6 +21,7 @@ mod filters;
 mod helpers;
 mod precompute;
 mod warp_params;
+pub mod compute_gpu;
 
 use std::fmt::Debug;
 #[cfg(feature = "io")]
