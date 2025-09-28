@@ -26,7 +26,10 @@ mod warp_params;
 
 use std::fmt::Debug;
 
+pub use compute::WarperCompute;
 pub use filters::{CubicBSpline, MitchellNetravali, ResamplingFilter};
+#[cfg(feature = "io")]
+pub use helpers::WarperIOError;
 pub(crate) use helpers::{
     GenericXYPair, IJPair, IXJYPair, MinMaxPair, RasterBounds, SourceXYPair, TargetXYPair,
 };
