@@ -19,29 +19,25 @@
 mod compute;
 mod filters;
 mod helpers;
+#[cfg(feature = "io")]
+mod io;
 mod precompute;
 mod warp_params;
 
 use std::fmt::Debug;
-#[cfg(feature = "io")]
-use std::fs::File;
 
 pub use filters::{CubicBSpline, MitchellNetravali, ResamplingFilter};
-#[cfg(feature = "io")]
-pub use helpers::WarperIOError;
 pub(crate) use helpers::{
     GenericXYPair, IJPair, IXJYPair, MinMaxPair, RasterBounds, SourceXYPair, TargetXYPair,
 };
 pub use helpers::{RasterBoundsDefinition, WarperError, raster_constant_pad};
 use mappers::Projection;
 use ndarray::Array2;
-#[cfg(feature = "io")]
-use serde::{Deserialize, Serialize};
 
 use crate::{precompute::precompute_ixs_jys, warp_params::WarperParameters};
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
-#[cfg_attr(feature = "io", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "io", derive(serde::Serialize, serde::Deserialize))]
 struct ResamplingKernelInternals {
     pub anchor_idx: (usize, usize),
     pub x_weights: [f64; 4],
@@ -54,41 +50,6 @@ pub struct Warper {
     source_shape: (usize, usize),
     /// internals are in a shape of target raster
     internals: Array2<ResamplingKernelInternals>,
-}
-
-/// Warper uses ndarray which implements unsafe methods.
-/// From clippy: Deriving `serde::Deserialize` will create a constructor that may violate invariants held by another constructor.
-/// This Wrapper prevents deriving `Deserialize` for type with usafe methods.
-#[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "io", derive(Serialize, Deserialize))]
-#[cfg(feature = "io")]
-struct WarperCompatIO {
-    source_shape: (usize, usize),
-    target_shape: (usize, usize),
-    internals: Vec<ResamplingKernelInternals>,
-}
-
-#[cfg(feature = "io")]
-impl From<Warper> for WarperCompatIO {
-    fn from(warper_lib: Warper) -> Self {
-        Self {
-            source_shape: warper_lib.source_shape,
-            target_shape: warper_lib.internals.dim(),
-            internals: warper_lib.internals.into_flat().to_vec(),
-        }
-    }
-}
-
-#[cfg(feature = "io")]
-impl TryFrom<WarperCompatIO> for Warper {
-    type Error = ndarray::ShapeError;
-
-    fn try_from(warper_io: WarperCompatIO) -> Result<Self, Self::Error> {
-        Ok(Self {
-            source_shape: warper_io.source_shape,
-            internals: Array2::from_shape_vec(warper_io.target_shape, warper_io.internals)?,
-        })
-    }
 }
 
 impl Warper {
@@ -114,33 +75,10 @@ impl Warper {
             internals,
         })
     }
-
-    #[cfg(feature = "io")]
-    pub fn save_to_file(self, path: &str) -> Result<(), WarperIOError> {
-        let mut file = File::create(path)?;
-        let object = WarperCompatIO::from(self);
-
-        bincode::serde::encode_into_std_write(object, &mut file, bincode::config::standard())?;
-
-        Ok(())
-    }
-
-    #[cfg(feature = "io")]
-    pub fn load_from_file(path: &str) -> Result<Self, WarperIOError> {
-        let mut file = File::open(path)?;
-
-        let warper: WarperCompatIO =
-            bincode::serde::decode_from_std_read(&mut file, bincode::config::standard())?;
-
-        Ok(warper.try_into()?)
-    }
 }
 
 #[cfg(test)]
 pub(crate) mod tests {
-    #[cfg(feature = "io")]
-    use std::fs;
-
     use anyhow::Result;
     use mappers::{
         Ellipsoid,
@@ -148,8 +86,6 @@ pub(crate) mod tests {
     };
 
     use crate::{GenericXYPair, RasterBounds, RasterBoundsDefinition};
-    #[cfg(feature = "io")]
-    use crate::{Warper, filters::CubicBSpline};
 
     pub(crate) fn reference_setup_def() -> Result<(
         RasterBoundsDefinition<LongitudeLatitude>,
@@ -189,27 +125,5 @@ pub(crate) mod tests {
     )> {
         let (source_bounds, target_bounds) = reference_setup_def()?;
         Ok((source_bounds.into(), target_bounds.into()))
-    }
-
-    #[cfg(feature = "io")]
-    #[test]
-    fn io() -> Result<()> {
-        let (src_bounds, tgt_bounds) = reference_setup_def()?;
-        let warper = Warper::initialize::<CubicBSpline, LongitudeLatitude, LambertConformalConic>(
-            &src_bounds,
-            &tgt_bounds,
-        )?;
-
-        warper
-            .clone()
-            .save_to_file("./tests/data/saved-warper.dat")?;
-
-        let loaded = Warper::load_from_file("./tests/data/saved-warper.dat")?;
-
-        fs::remove_file("./tests/data/saved-warper.dat").unwrap_or(()); // cleanup
-
-        assert_eq!(warper, loaded);
-
-        Ok(())
     }
 }
