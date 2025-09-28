@@ -89,6 +89,26 @@ impl WarperInitialize for Warper {
     }
 }
 
+#[cfg(feature = "multithread")]
+#[cfg_attr(docsrs, doc(cfg(feature = "multithread")))]
+#[derive(Debug, Clone, PartialEq)]
+pub struct ParallelWarper {
+    /// uses ndarray convention [y, x]
+    source_shape: (usize, usize),
+    /// internals are in a shape of target raster
+    internals: Array2<ResamplingKernelInternals>,
+}
+
+impl WarperInitialize for ParallelWarper {
+    #[cfg_attr(docsrs, doc(cfg(feature = "multithread")))]
+    fn initialize<F: ResamplingFilter, SP: Projection, TP: Projection>(
+        source_bounds: &RasterBoundsDefinition<SP>,
+        target_bounds: &RasterBoundsDefinition<TP>,
+    ) -> Result<Self, WarperError> {
+        todo!()
+    }
+}
+
 #[cfg(test)]
 pub(crate) mod tests {
     use anyhow::Result;

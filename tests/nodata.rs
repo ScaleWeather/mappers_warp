@@ -4,7 +4,9 @@ use mappers::{
     Ellipsoid,
     projections::{LambertConformalConic, LongitudeLatitude},
 };
-use mappers_warp::{CubicBSpline, RasterBoundsDefinition, Warper, WarperCompute, WarperInitialize};
+use mappers_warp::{
+    CubicBSpline, ParallelWarper, RasterBoundsDefinition, Warper, WarperCompute, WarperInitialize,
+};
 use ndarray::{Array2, Zip, s};
 
 mod utils;
@@ -39,6 +41,17 @@ fn waves_unchecked() -> Result<()> {
     Zip::from(&target_raster)
         .and(&ref_raster)
         .map_collect(|&f, &o| assert_approx_eq!(f64, f, o, epsilon = 1e-6));
+
+    #[cfg(feature = "multithread")]
+    {
+        let par_warper = ParallelWarper::initialize::<
+            CubicBSpline,
+            LongitudeLatitude,
+            LambertConformalConic,
+        >(&source_bounds, &target_bounds)?;
+        let par_target_raster = par_warper.warp_unchecked(&source_raster);
+        assert_eq!(par_target_raster, target_raster);
+    }
 
     Ok(())
 }
@@ -77,6 +90,17 @@ fn nan_ignore() -> Result<()> {
     Zip::from(&target_raster)
         .and(&ref_raster)
         .map_collect(|&f, &o| assert_approx_eq!(f64, f, o, epsilon = 1e-6));
+
+    #[cfg(feature = "multithread")]
+    {
+        let par_warper = ParallelWarper::initialize::<
+            CubicBSpline,
+            LongitudeLatitude,
+            LambertConformalConic,
+        >(&source_bounds, &target_bounds)?;
+        let par_target_raster = par_warper.warp_ignore_nodata(&source_raster)?;
+        assert_eq!(par_target_raster, target_raster);
+    }
 
     Ok(())
 }
@@ -119,6 +143,17 @@ fn nan_reject() -> Result<()> {
     let target_raster = warper.warp_reject_nodata(&source_raster);
     assert!(target_raster.is_err());
 
+    #[cfg(feature = "multithread")]
+    {
+        let par_warper = ParallelWarper::initialize::<
+            CubicBSpline,
+            LongitudeLatitude,
+            LambertConformalConic,
+        >(&source_bounds, &target_bounds)?;
+        let par_target_raster = par_warper.warp_reject_nodata(&source_raster);
+        assert!(par_target_raster.is_err());
+    }
+
     Ok(())
 }
 
@@ -157,6 +192,17 @@ fn nan_discard() -> Result<()> {
         .and(&ref_raster)
         .map_collect(|&f, &o| assert_approx_eq!(f64, f, o, epsilon = 1e-6));
 
+    #[cfg(feature = "multithread")]
+    {
+        let par_warper = ParallelWarper::initialize::<
+            CubicBSpline,
+            LongitudeLatitude,
+            LambertConformalConic,
+        >(&source_bounds, &target_bounds)?;
+        let par_target_raster = par_warper.warp_discard_nodata(&source_raster)?;
+        assert_eq!(par_target_raster, target_raster);
+    }
+
     Ok(())
 }
 
@@ -187,6 +233,18 @@ fn non_finite_result() -> Result<()> {
     assert!(warper.warp_discard_nodata(&source_raster).is_err());
     assert!(warper.warp_reject_nodata(&source_raster).is_err());
     assert!(warper.warp_ignore_nodata(&source_raster).is_err());
+
+    #[cfg(feature = "multithread")]
+    {
+        let par_warper = ParallelWarper::initialize::<
+            CubicBSpline,
+            LongitudeLatitude,
+            LambertConformalConic,
+        >(&source_bounds, &target_bounds)?;
+        assert!(par_warper.warp_discard_nodata(&source_raster).is_err());
+        assert!(par_warper.warp_reject_nodata(&source_raster).is_err());
+        assert!(par_warper.warp_ignore_nodata(&source_raster).is_err());
+    }
 
     Ok(())
 }
