@@ -4,7 +4,7 @@ use mappers::{
     Ellipsoid,
     projections::{LambertConformalConic, LongitudeLatitude},
 };
-use mappers_warp::{CubicBSpline, RasterBoundsDefinition, Warper, WarperCompute};
+use mappers_warp::{CubicBSpline, RasterBoundsDefinition, Warper, WarperCompute, WarperInitialize};
 use ndarray::{Array2, Zip, s};
 
 mod utils;

@@ -6,7 +6,7 @@ use mappers::{
     Ellipsoid,
     projections::{LambertConformalConic, LongitudeLatitude},
 };
-use mappers_warp::{CubicBSpline, RasterBoundsDefinition, Warper, WarperCompute};
+use mappers_warp::{CubicBSpline, RasterBoundsDefinition, Warper, WarperCompute, WarperInitialize};
 
 pub fn criterion_benchmark(c: &mut Criterion) {
     inner_bench(c).unwrap()

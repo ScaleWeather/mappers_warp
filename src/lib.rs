@@ -39,6 +39,15 @@ use ndarray::Array2;
 
 use crate::{precompute::precompute_ixs_jys, warp_params::WarperParameters};
 
+pub trait WarperInitialize {
+    fn initialize<F: ResamplingFilter, SP: Projection, TP: Projection>(
+        source_bounds: &RasterBoundsDefinition<SP>,
+        target_bounds: &RasterBoundsDefinition<TP>,
+    ) -> Result<Self, WarperError>
+    where
+        Self: Sized;
+}
+
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "io", derive(serde::Serialize, serde::Deserialize))]
 struct ResamplingKernelInternals {
@@ -55,8 +64,8 @@ pub struct Warper {
     internals: Array2<ResamplingKernelInternals>,
 }
 
-impl Warper {
-    pub fn initialize<F: ResamplingFilter, SP: Projection, TP: Projection>(
+impl WarperInitialize for Warper {
+    fn initialize<F: ResamplingFilter, SP: Projection, TP: Projection>(
         source_bounds: &RasterBoundsDefinition<SP>,
         target_bounds: &RasterBoundsDefinition<TP>,
     ) -> Result<Self, WarperError> {

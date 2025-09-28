@@ -68,7 +68,7 @@ pub(crate) mod tests {
     use anyhow::Result;
     use mappers::projections::{LambertConformalConic, LongitudeLatitude};
 
-    use crate::{Warper, filters::CubicBSpline, tests::reference_setup_def};
+    use crate::{filters::CubicBSpline, tests::reference_setup_def, Warper, WarperInitialize};
 
     #[test]
     fn io() -> Result<()> {
