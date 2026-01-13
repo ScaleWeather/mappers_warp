@@ -1,4 +1,4 @@
-#![cfg(feature = "multithread")]
+#![cfg(feature = "multithreading")]
 
 use anyhow::Result;
 use mappers::{

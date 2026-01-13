@@ -3,6 +3,7 @@ use ndarray::{Array2, ArrayView2, FoldWhile, Zip, s};
 use crate::{Warper, WarperError};
 
 impl Warper {
+    /// This variant does not check anything at all
     pub fn warp_unchecked<'a, A: Into<ArrayView2<'a, f64>>>(
         &self,
         source_raster: A,
@@ -42,12 +43,15 @@ impl Warper {
         target_raster
     }
 
-    // From GdalWarp documentation: for bilinear, cubic, cubicspline and lanczos, for each target pixel, the coordinate of its center
-    // is projected back to source coordinates and a corresponding source pixel is identified. If this source pixel is invalid,
-    // the target pixel is considered as nodata. Given that those resampling kernels have a non-null kernel radius,
-    // this source pixel is just one among other several source pixels, and it might be possible that there are invalid
-    // values in those other contributing source pixels. The weights used to take into account those invalid values
-    // will be set to zero to ignore them.
+    /// From GdalWarp documentation: for bilinear, cubic, cubicspline and lanczos, for each target pixel, the coordinate of its center
+    /// is projected back to source coordinates and a corresponding source pixel is identified. If this source pixel is invalid,
+    /// the target pixel is considered as nodata. Given that those resampling kernels have a non-null kernel radius,
+    /// this source pixel is just one among other several source pixels, and it might be possible that there are invalid
+    /// values in those other contributing source pixels. The weights used to take into account those invalid values
+    /// will be set to zero to ignore them.
+    /// 
+    /// In short: this variant computes the filter value as if NaN points weren't there
+    /// or if the result is not finite
     pub fn warp_ignore_nodata<'a, A: Into<ArrayView2<'a, f64>>>(
         &self,
         source_raster: A,
@@ -112,6 +116,7 @@ impl Warper {
         Ok(target_raster)
     }
 
+    /// This variant throws an error if there's any NaN in the data or result is not finite
     pub fn warp_reject_nodata<'a, A: Into<ArrayView2<'a, f64>>>(
         &self,
         source_raster: A,
@@ -172,6 +177,8 @@ impl Warper {
         Ok(target_raster)
     }
 
+    /// This variant returns NaN for each target pixel which would include NaN in the filter
+    /// or if result is not finite
     pub fn warp_discard_nodata<'a, A: Into<ArrayView2<'a, f64>>>(
         &self,
         source_raster: A,
@@ -234,8 +241,8 @@ impl Warper {
     }
 }
 
-#[cfg_attr(docsrs, doc(cfg(feature = "multithread")))]
-#[cfg(feature = "multithread")]
+#[cfg(feature = "multithreading")]
+#[cfg_attr(docsrs, doc(cfg(feature = "multithreading")))]
 impl Warper {
     pub fn warp_unchecked_parallel<'a, A: Into<ArrayView2<'a, f64>>>(
         &self,
@@ -282,6 +289,8 @@ impl Warper {
     // this source pixel is just one among other several source pixels, and it might be possible that there are invalid
     // values in those other contributing source pixels. The weights used to take into account those invalid values
     // will be set to zero to ignore them.
+    #[cfg(feature = "multithreading")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "multithreading")))]
     pub fn warp_ignore_nodata_parallel<'a, A: Into<ArrayView2<'a, f64>>>(
         &self,
         source_raster: A,
@@ -346,6 +355,8 @@ impl Warper {
         Ok(target_raster)
     }
 
+    #[cfg(feature = "multithreading")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "multithreading")))]
     pub fn warp_reject_nodata_parallel<'a, A: Into<ArrayView2<'a, f64>>>(
         &self,
         source_raster: A,
@@ -406,6 +417,8 @@ impl Warper {
         Ok(target_raster)
     }
 
+    #[cfg(feature = "multithreading")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "multithreading")))]
     pub fn warp_discard_nodata_parallel<'a, A: Into<ArrayView2<'a, f64>>>(
         &self,
         source_raster: A,

@@ -43,7 +43,7 @@ fn waves_unchecked() -> Result<()> {
         .and(&ref_raster)
         .map_collect(|&f, &o| assert_approx_eq!(f64, f, o, epsilon = 1e-6));
 
-    #[cfg(feature = "multithread")]
+    #[cfg(feature = "multithreading")]
     {
         let par_target_raster = warper.warp_unchecked_parallel(&source_raster);
         assert_eq!(par_target_raster, target_raster);
@@ -90,7 +90,7 @@ fn nan_ignore() -> Result<()> {
         .and(&ref_raster)
         .map_collect(|&f, &o| assert_approx_eq!(f64, f, o, epsilon = 1e-6));
 
-    #[cfg(feature = "multithread")]
+    #[cfg(feature = "multithreading")]
     {
         let par_target_raster = warper.warp_ignore_nodata_parallel(&source_raster)?;
         Zip::from(&target_raster)
@@ -142,7 +142,7 @@ fn nan_reject() -> Result<()> {
     let target_raster = warper.warp_reject_nodata(&source_raster);
     assert!(target_raster.is_err());
 
-    #[cfg(feature = "multithread")]
+    #[cfg(feature = "multithreading")]
     {
         let par_target_raster = warper.warp_reject_nodata_parallel(&source_raster);
         assert!(par_target_raster.is_err());
@@ -189,7 +189,7 @@ fn nan_discard() -> Result<()> {
         .and(&ref_raster)
         .map_collect(|&f, &o| assert_approx_eq!(f64, f, o, epsilon = 1e-6));
 
-    #[cfg(feature = "multithread")]
+    #[cfg(feature = "multithreading")]
     {
         let par_target_raster = warper.warp_discard_nodata_parallel(&source_raster)?;
         // rasters with nans must be compared this way because for f64 (NaN == NaN) -> false
@@ -232,7 +232,7 @@ fn non_finite_result() -> Result<()> {
     assert!(warper.warp_reject_nodata(&source_raster).is_err());
     assert!(warper.warp_ignore_nodata(&source_raster).is_err());
 
-    #[cfg(feature = "multithread")]
+    #[cfg(feature = "multithreading")]
     {
         assert!(warper.warp_discard_nodata_parallel(&source_raster).is_err());
         assert!(warper.warp_reject_nodata_parallel(&source_raster).is_err());

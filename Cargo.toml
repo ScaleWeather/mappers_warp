@@ -31,7 +31,7 @@ criterion = { version = "0.8" }
 [features]
 default = []
 io = ["rkyv"]
-multithread = ["ndarray/rayon"]
+multithreading = ["ndarray/rayon"]
 
 [[bench]]
 name = "warp"

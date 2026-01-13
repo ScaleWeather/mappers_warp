@@ -83,8 +83,8 @@ impl Warper {
         })
     }
 
-    #[cfg(feature = "multithread")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "multithread")))]
+    #[cfg(feature = "multithreading")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "multithreading")))]
     /// Same as initialize but uses multithreading in some computations.
     pub fn initialize_parallel<F: ResamplingFilter, SP: Projection, TP: Projection>(
         source_bounds: &RasterBoundsDefinition<SP>,

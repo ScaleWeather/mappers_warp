@@ -1,5 +1,7 @@
 use mappers::{ConversionPipe, Projection};
-use ndarray::{Array2, Zip};
+use ndarray::{Array2};
+#[cfg(feature = "multithreading")]
+use ndarray::Zip;
 
 use crate::{
     IXJYPair, RasterBounds, ResamplingFilter, ResamplingKernelInternals, SourceXYPair,
@@ -54,7 +56,7 @@ pub(crate) fn precompute_ixs_jys<SP: Projection, TP: Projection>(
     Ok(precomputed_coords)
 }
 
-#[cfg(feature = "multithread")]
+#[cfg(feature = "multithreading")]
 pub(crate) fn precompute_ixs_jys_parallel<SP: Projection, TP: Projection>(
     source_bounds: &RasterBounds<SP, SourceXYPair>,
     target_bounds: &RasterBounds<TP, TargetXYPair>,
@@ -169,6 +171,7 @@ pub(crate) fn precompute_internals<F: ResamplingFilter>(
     })
 }
 
+#[cfg(feature = "multithreading")]
 pub(crate) fn precompute_internals_parallel<F: ResamplingFilter>(
     tgt_ixs_jys: &Array2<IXJYPair>,
     params: &WarperParameters,
