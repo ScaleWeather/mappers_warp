@@ -19,10 +19,12 @@
 mod compute;
 mod filters;
 mod helpers;
-#[cfg(feature = "io")]
-mod io;
 mod precompute;
 mod warp_params;
+
+#[cfg(feature = "io")]
+#[cfg_attr(docsrs, doc(cfg(feature = "io")))]
+mod io;
 
 use std::fmt::Debug;
 
@@ -34,8 +36,11 @@ pub(crate) use helpers::{
     GenericXYPair, IJPair, IXJYPair, MinMaxPair, RasterBounds, SourceXYPair, TargetXYPair,
 };
 pub use helpers::{RasterBoundsDefinition, WarperError, raster_constant_pad};
+
 use mappers::Projection;
 use ndarray::Array2;
+#[cfg(feature = "io")]
+use rkyv::{Archive, Deserialize, Serialize};
 
 use crate::{precompute::precompute_ixs_jys, warp_params::WarperParameters};
 
@@ -49,7 +54,7 @@ pub trait WarperInitialize {
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
-#[cfg_attr(feature = "io", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "io", derive(Archive, Deserialize, Serialize))]
 struct ResamplingKernelInternals {
     pub anchor_idx: (usize, usize),
     pub x_weights: [f64; 4],
@@ -99,6 +104,8 @@ pub struct ParallelWarper {
     internals: Array2<ResamplingKernelInternals>,
 }
 
+#[cfg(feature = "multithread")]
+#[cfg_attr(docsrs, doc(cfg(feature = "multithread")))]
 impl WarperInitialize for ParallelWarper {
     #[cfg_attr(docsrs, doc(cfg(feature = "multithread")))]
     fn initialize<F: ResamplingFilter, SP: Projection, TP: Projection>(
@@ -124,13 +131,11 @@ pub(crate) mod tests {
         RasterBoundsDefinition<LambertConformalConic>,
     )> {
         let source_projection = LongitudeLatitude;
-        let target_projections = LambertConformalConic::new(
-            80.,
-            24.,
-            12.472_955,
-            35.172_804_444_444_4,
-            Ellipsoid::WGS84,
-        )?;
+        let target_projection = LambertConformalConic::builder()
+            .ref_lonlat(80., 24.)
+            .standard_parallels(12.472_955, 35.172_804_444_444_4)
+            .ellipsoid(Ellipsoid::WGS84)
+            .initialize_projection()?;
 
         let source_bounds = RasterBoundsDefinition::new(
             (60.00, 67.75),
@@ -145,7 +150,7 @@ pub(crate) mod tests {
             (5_090_000. - 4_000_000., 5_640_000. - 4_000_000.),
             10_000.,
             10_000.,
-            target_projections,
+            target_projection,
         )?;
 
         Ok((source_bounds, target_bounds))

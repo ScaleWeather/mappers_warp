@@ -1,18 +1,19 @@
-#![cfg_attr(docsrs, doc(cfg(feature = "io")))]
-
-use std::fs::File;
+use std::fs::{self, File};
+use std::path::Path;
 
 use ndarray::Array2;
-use serde::{Deserialize, Serialize};
+use rkyv::rancor::Error;
+use rkyv::ser::writer::IoWriter;
+use rkyv::{Archive, Deserialize, Serialize, access, deserialize};
 
-#[cfg(feature = "io")]
 use crate::helpers::WarperIOError;
 use crate::{ResamplingKernelInternals, Warper};
 
 /// Warper uses ndarray which implements unsafe methods.
 /// From clippy: Deriving `serde::Deserialize` will create a constructor that may violate invariants held by another constructor.
-/// This wrapper prevents deriving `Deserialize` for type with usafe methods.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+/// This wrapper prevents deriving `Deserialize` for type with unsafe methods.
+/// This issue likely applies also for rkyv
+#[derive(Debug, Clone, PartialEq, Archive, Serialize, Deserialize)]
 struct WarperCompatIO {
     source_shape: (usize, usize),
     target_shape: (usize, usize),
@@ -41,21 +42,21 @@ impl TryFrom<WarperCompatIO> for Warper {
 }
 impl Warper {
     #[cfg_attr(docsrs, doc(cfg(feature = "io")))]
-    pub fn save_to_file(self, path: &str) -> Result<(), WarperIOError> {
-        let mut file = File::create(path)?;
+    pub fn save_to_file<P: AsRef<Path>>(self, path: P) -> Result<(), WarperIOError> {
+        let file = File::create(path)?;
+        let io_writer = IoWriter::new(file);
         let object = WarperCompatIO::from(self);
 
-        bincode::serde::encode_into_std_write(object, &mut file, bincode::config::standard())?;
+        rkyv::api::high::to_bytes_in::<_, Error>(&object, io_writer)?;
 
         Ok(())
     }
 
     #[cfg_attr(docsrs, doc(cfg(feature = "io")))]
-    pub fn load_from_file(path: &str) -> Result<Self, WarperIOError> {
-        let mut file = File::open(path)?;
-
-        let warper: WarperCompatIO =
-            bincode::serde::decode_from_std_read(&mut file, bincode::config::standard())?;
+    pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, WarperIOError> {
+        let file: Vec<u8> = fs::read(path)?;
+        let archived = access::<ArchivedWarperCompatIO, Error>(&file)?;
+        let warper = deserialize::<WarperCompatIO, Error>(archived)?;
 
         Ok(warper.try_into()?)
     }
@@ -68,7 +69,7 @@ pub(crate) mod tests {
     use anyhow::Result;
     use mappers::projections::{LambertConformalConic, LongitudeLatitude};
 
-    use crate::{filters::CubicBSpline, tests::reference_setup_def, Warper, WarperInitialize};
+    use crate::{Warper, WarperInitialize, filters::CubicBSpline, tests::reference_setup_def};
 
     #[test]
     fn io() -> Result<()> {

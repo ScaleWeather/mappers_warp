@@ -14,7 +14,11 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
 pub fn inner_bench(c: &mut Criterion) -> Result<()> {
     let src_proj = LongitudeLatitude;
-    let eu_proj = LambertConformalConic::new(10.0, 52.0, 35.0, 65.0, Ellipsoid::WGS84)?;
+    let eu_proj = LambertConformalConic::builder()
+        .ref_lonlat(10., 52.)
+        .standard_parallels(35., 65.)
+        .ellipsoid(Ellipsoid::WGS84)
+        .initialize_projection()?;
 
     let source_domain =
         RasterBoundsDefinition::new((-70.0, 85.0), (17.0, 77.0), 0.25, 0.25, src_proj)?;

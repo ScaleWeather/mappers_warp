@@ -1,6 +1,9 @@
 use ndarray::{Array2, ArrayView2, FoldWhile, Zip, s};
 
-use crate::{ParallelWarper, Warper, WarperError};
+use crate::{Warper, WarperError};
+#[cfg(feature = "multithread")]
+#[cfg_attr(docsrs, doc(cfg(feature = "multithread")))]
+use crate::ParallelWarper;
 
 pub trait WarperCompute {
     #[must_use]

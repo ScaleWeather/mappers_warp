@@ -31,11 +31,8 @@ pub enum WarperIOError {
     #[error("IO error {0}")]
     IoError(#[from] std::io::Error),
 
-    #[error("Bincode decoding error {0}")]
-    BincodeDecodeError(#[from] bincode::error::DecodeError),
-
-    #[error("Bincode encoding error {0}")]
-    BincodeEncodeError(#[from] bincode::error::EncodeError),
+    #[error("Rkyv error {0}")]
+    BincodeDecodeError(#[from] rkyv::rancor::Error),
 
     #[error("Ndarray error {0}")]
     NdarrayError(#[from] ndarray::ShapeError),

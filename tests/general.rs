@@ -5,7 +5,8 @@ use mappers::{
     projections::{AzimuthalEquidistant, LambertConformalConic, LongitudeLatitude},
 };
 use mappers_warp::{
-    raster_constant_pad, CubicBSpline, MitchellNetravali, RasterBoundsDefinition, Warper, WarperCompute, WarperInitialize
+    CubicBSpline, MitchellNetravali, RasterBoundsDefinition, Warper, WarperCompute,
+    WarperInitialize, raster_constant_pad,
 };
 use ndarray::{Array2, Zip};
 
@@ -15,8 +16,11 @@ use utils::*;
 #[test]
 fn waves() -> Result<()> {
     let src_proj = LongitudeLatitude;
-    let tgt_proj =
-        LambertConformalConic::new(80., 24., 12.472955, 35.1728044444444, Ellipsoid::WGS84)?;
+    let tgt_proj = LambertConformalConic::builder()
+        .ref_lonlat(80., 24.)
+        .standard_parallels(12.472955, 35.1728044444444)
+        .ellipsoid(Ellipsoid::WGS84)
+        .initialize_projection()?;
 
     let source_bounds =
         RasterBoundsDefinition::new((60.00, 68.25), (31.75, 40.0), 0.25, 0.25, src_proj)?;
@@ -48,7 +52,11 @@ fn waves() -> Result<()> {
 #[test]
 fn gfs_t2m() -> Result<()> {
     let src_proj = LongitudeLatitude;
-    let eu_proj = LambertConformalConic::new(10.0, 52.0, 35.0, 65.0, Ellipsoid::WGS84)?;
+    let eu_proj = LambertConformalConic::builder()
+        .ref_lonlat(10.0, 52.0)
+        .standard_parallels(35.0, 65.0)
+        .ellipsoid(Ellipsoid::WGS84)
+        .initialize_projection()?;
 
     let source_domain =
         RasterBoundsDefinition::new((-70.0, 85.0), (17.0, 77.0), 0.25, 0.25, src_proj)?;
@@ -78,7 +86,11 @@ fn gfs_t2m() -> Result<()> {
 #[test]
 fn mitchell() -> Result<()> {
     let src_proj = LongitudeLatitude;
-    let eu_proj = LambertConformalConic::new(10.0, 52.0, 35.0, 65.0, Ellipsoid::WGS84)?;
+    let eu_proj = LambertConformalConic::builder()
+        .ref_lonlat(10.0, 52.0)
+        .standard_parallels(35.0, 65.0)
+        .ellipsoid(Ellipsoid::WGS84)
+        .initialize_projection()?;
 
     let source_domain =
         RasterBoundsDefinition::new((-70.0, 85.0), (17.0, 77.0), 0.25, 0.25, src_proj)?;
@@ -111,8 +123,11 @@ fn mitchell() -> Result<()> {
 #[test]
 fn nan_padded_waves() -> Result<()> {
     let src_proj = LongitudeLatitude;
-    let tgt_proj =
-        LambertConformalConic::new(80., 24., 12.472955, 35.1728044444444, Ellipsoid::WGS84)?;
+    let tgt_proj = LambertConformalConic::builder()
+        .ref_lonlat(80., 24.)
+        .standard_parallels(12.472955, 35.1728044444444)
+        .ellipsoid(Ellipsoid::WGS84)
+        .initialize_projection()?;
 
     let source_bounds =
         RasterBoundsDefinition::new((59.25, 69.00), (31.00, 40.75), 0.25, 0.25, src_proj)?;
@@ -145,8 +160,11 @@ fn nan_padded_waves() -> Result<()> {
 #[test]
 fn invalid_raster_size() -> Result<()> {
     let src_proj = LongitudeLatitude;
-    let tgt_proj =
-        LambertConformalConic::new(80., 24., 12.472955, 35.1728044444444, Ellipsoid::WGS84)?;
+    let tgt_proj = LambertConformalConic::builder()
+        .ref_lonlat(80., 24.)
+        .standard_parallels(12.472955, 35.1728044444444)
+        .ellipsoid(Ellipsoid::WGS84)
+        .initialize_projection()?;
 
     let source_bounds =
         RasterBoundsDefinition::new((60.00, 68.25), (31.75, 40.0), 0.25, 0.25, src_proj)?;
@@ -173,14 +191,15 @@ fn invalid_raster_size() -> Result<()> {
 
 #[test]
 fn aeqd_to_lcc() -> Result<()> {
-    let src_proj = AzimuthalEquidistant::new(19.0926, 52.3469, Ellipsoid::SPHERE)?;
-    let tgt_proj = LambertConformalConic::new(
-        19.0926,
-        52.3469,
-        52.344876525433854,
-        52.34892347456614,
-        Ellipsoid::WGS84,
-    )?;
+    let src_proj = AzimuthalEquidistant::builder()
+        .ref_lonlat(19.0926, 52.3469)
+        .ellipsoid(Ellipsoid::SPHERE)
+        .initialize_projection()?;
+    let tgt_proj = LambertConformalConic::builder()
+        .ref_lonlat(19.0926, 52.3469)
+        .standard_parallels(52.344876525433854, 52.34892347456614)
+        .ellipsoid(Ellipsoid::WGS84)
+        .initialize_projection()?;
 
     let source_domain = RasterBoundsDefinition::new(
         (-452500., 452500.),
