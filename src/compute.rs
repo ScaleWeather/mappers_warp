@@ -10,7 +10,9 @@ impl Warper {
     ) -> Array2<f64> {
         let source_raster: ArrayView2<f64> = source_raster.into();
 
-        let target_raster = self.internals.map(|intr| {
+        
+
+        self.internals.map(|intr| {
             let values = source_raster.slice(s![
                 (intr.anchor_idx.1 - 1)..(intr.anchor_idx.1 + 3),
                 (intr.anchor_idx.0 - 1)..(intr.anchor_idx.0 + 3)
@@ -38,12 +40,10 @@ impl Warper {
             }
 
             result_accum / weight_accum
-        });
-
-        target_raster
+        })
     }
 
-    /// From GdalWarp documentation: for bilinear, cubic, cubicspline and lanczos, for each target pixel, the coordinate of its center
+    /// From `GdalWarp` documentation: for bilinear, cubic, cubicspline and lanczos, for each target pixel, the coordinate of its center
     /// is projected back to source coordinates and a corresponding source pixel is identified. If this source pixel is invalid,
     /// the target pixel is considered as nodata. Given that those resampling kernels have a non-null kernel radius,
     /// this source pixel is just one among other several source pixels, and it might be possible that there are invalid
@@ -250,7 +250,9 @@ impl Warper {
     ) -> Array2<f64> {
         let source_raster: ArrayView2<f64> = source_raster.into();
 
-        let target_raster = Zip::from(&self.internals).par_map_collect(|intr| {
+        
+
+        Zip::from(&self.internals).par_map_collect(|intr| {
             let values = source_raster.slice(s![
                 (intr.anchor_idx.1 - 1)..(intr.anchor_idx.1 + 3),
                 (intr.anchor_idx.0 - 1)..(intr.anchor_idx.0 + 3)
@@ -278,9 +280,7 @@ impl Warper {
             }
 
             result_accum / weight_accum
-        });
-
-        target_raster
+        })
     }
 
     // From GdalWarp documentation: for bilinear, cubic, cubicspline and lanczos, for each target pixel, the coordinate of its center
@@ -352,7 +352,7 @@ impl Warper {
                         Err(WarperError::WarpingError)
                     }
                 },
-                |a, b| a.and(b),
+                std::result::Result::and,
             )?;
 
         Ok(target_raster)
@@ -381,7 +381,7 @@ impl Warper {
                     Ok(())
                 }
             },
-            |a, b| a.and(b),
+            std::result::Result::and,
         )?;
 
         let target_raster = self.warp_unchecked_parallel(source_raster);
@@ -395,7 +395,7 @@ impl Warper {
                     Err(WarperError::WarpingError)
                 }
             },
-            |a, b| a.and(b),
+            std::result::Result::and,
         )?;
 
         Ok(target_raster)
@@ -463,7 +463,7 @@ impl Warper {
                         Err(WarperError::WarpingError)
                     }
                 },
-                |a, b| a.and(b),
+                std::result::Result::and,
             )?;
 
         Ok(target_raster)

@@ -8,17 +8,17 @@ use crate::{
     TargetXYPair, WarperError, helpers::GenericXYPair, warp_params::WarperParameters,
 };
 
-pub(crate) fn precompute_ixs_jys<SP: Projection, TP: Projection>(
+pub fn precompute_ixs_jys<SP: Projection, TP: Projection>(
     source_bounds: &RasterBounds<SP, SourceXYPair>,
     target_bounds: &RasterBounds<TP, TargetXYPair>,
 ) -> Result<Array2<IXJYPair>, WarperError> {
     let tgt_ul_edge_corner = SourceXYPair {
-        x: target_bounds.min.x - (0.5 * target_bounds.spacing.x),
-        y: target_bounds.max.y + (0.5 * target_bounds.spacing.y),
+        x: 0.5f64.mul_add(-target_bounds.spacing.x, target_bounds.min.x),
+        y: 0.5f64.mul_add(target_bounds.spacing.y, target_bounds.max.y),
     };
     let src_ul_edge_corner = SourceXYPair {
-        x: source_bounds.min.x - (0.5 * source_bounds.spacing.x),
-        y: source_bounds.max.y + (0.5 * source_bounds.spacing.y),
+        x: 0.5f64.mul_add(-source_bounds.spacing.x, source_bounds.min.x),
+        y: 0.5f64.mul_add(source_bounds.spacing.y, source_bounds.max.y),
     };
 
     let conversion_scaling = GenericXYPair {
@@ -57,19 +57,19 @@ pub(crate) fn precompute_ixs_jys<SP: Projection, TP: Projection>(
 }
 
 #[cfg(feature = "multithreading")]
-pub(crate) fn precompute_ixs_jys_parallel<SP: Projection, TP: Projection>(
+pub fn precompute_ixs_jys_parallel<SP: Projection, TP: Projection>(
     source_bounds: &RasterBounds<SP, SourceXYPair>,
     target_bounds: &RasterBounds<TP, TargetXYPair>,
 ) -> Result<Array2<IXJYPair>, WarperError> {
     use ndarray::Zip;
 
     let tgt_ul_edge_corner = SourceXYPair {
-        x: target_bounds.min.x - (0.5 * target_bounds.spacing.x),
-        y: target_bounds.max.y + (0.5 * target_bounds.spacing.y),
+        x: 0.5f64.mul_add(-target_bounds.spacing.x, target_bounds.min.x),
+        y: 0.5f64.mul_add(target_bounds.spacing.y, target_bounds.max.y),
     };
     let src_ul_edge_corner = SourceXYPair {
-        x: source_bounds.min.x - (0.5 * source_bounds.spacing.x),
-        y: source_bounds.max.y + (0.5 * source_bounds.spacing.y),
+        x: 0.5f64.mul_add(-source_bounds.spacing.x, source_bounds.min.x),
+        y: 0.5f64.mul_add(source_bounds.spacing.y, source_bounds.max.y),
     };
 
     let conversion_scaling = GenericXYPair {
@@ -107,7 +107,7 @@ pub(crate) fn precompute_ixs_jys_parallel<SP: Projection, TP: Projection>(
                 Ok(())
             }
         },
-        |a, b| a.and(b),
+        std::result::Result::and,
     )?;
 
     Ok(precomputed_coords)
@@ -126,8 +126,8 @@ fn precompute_coords<SP: Projection, TP: Projection>(
     let j = ij.1;
 
     // 0.5 shift is because we are measuring from edge corner to midpoint
-    let tgt_x = tgt_ul_edge_corner.x + ((i as f64 + 0.5) * target_bounds.spacing.x);
-    let tgt_y = tgt_ul_edge_corner.y - ((j as f64 + 0.5) * target_bounds.spacing.y);
+    let tgt_x = (i as f64 + 0.5).mul_add(target_bounds.spacing.x, tgt_ul_edge_corner.x);
+    let tgt_y = (j as f64 + 0.5).mul_add(-target_bounds.spacing.y, tgt_ul_edge_corner.y);
 
     let (src_x, src_y) = proj_pipe.convert_unchecked(tgt_x, tgt_y);
 
@@ -137,7 +137,7 @@ fn precompute_coords<SP: Projection, TP: Projection>(
     }
 }
 
-pub(crate) fn precompute_internals<F: ResamplingFilter>(
+pub fn precompute_internals<F: ResamplingFilter>(
     tgt_ixs_jys: &Array2<IXJYPair>,
     params: &WarperParameters,
 ) -> Array2<ResamplingKernelInternals> {
@@ -172,7 +172,7 @@ pub(crate) fn precompute_internals<F: ResamplingFilter>(
 }
 
 #[cfg(feature = "multithreading")]
-pub(crate) fn precompute_internals_parallel<F: ResamplingFilter>(
+pub fn precompute_internals_parallel<F: ResamplingFilter>(
     tgt_ixs_jys: &Array2<IXJYPair>,
     params: &WarperParameters,
 ) -> Array2<ResamplingKernelInternals> {

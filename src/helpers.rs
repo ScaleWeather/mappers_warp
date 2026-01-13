@@ -41,56 +41,56 @@ pub enum WarperIOError {
     NdarrayError(#[from] ndarray::ShapeError),
 }
 
-pub(crate) trait XYPair: Debug + Clone + Copy + PartialEq + PartialOrd {}
+pub trait XYPair: Debug + Clone + Copy + PartialEq + PartialOrd {}
 impl XYPair for GenericXYPair {}
 impl XYPair for SourceXYPair {}
 impl XYPair for TargetXYPair {}
 
 impl From<GenericXYPair> for SourceXYPair {
     fn from(v: GenericXYPair) -> Self {
-        SourceXYPair { x: v.x, y: v.y }
+        Self { x: v.x, y: v.y }
     }
 }
 
 impl From<GenericXYPair> for TargetXYPair {
     fn from(v: GenericXYPair) -> Self {
-        TargetXYPair { x: v.x, y: v.y }
+        Self { x: v.x, y: v.y }
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
-pub(crate) struct GenericXYPair {
+pub struct GenericXYPair {
     pub x: f64,
     pub y: f64,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
-pub(crate) struct SourceXYPair {
+pub struct SourceXYPair {
     pub x: f64,
     pub y: f64,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
-pub(crate) struct TargetXYPair {
+pub struct TargetXYPair {
     pub x: f64,
     pub y: f64,
 }
 
 /// Floating indexes in the source raster
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
-pub(crate) struct IXJYPair {
+pub struct IXJYPair {
     pub ix: f64,
     pub jy: f64,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
-pub(crate) struct IJPair {
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd)]
+pub struct IJPair {
     pub i: u32,
     pub j: u32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub(crate) struct MinMaxPair<T> {
+pub struct MinMaxPair<T> {
     pub min: T,
     pub max: T,
 }
@@ -140,7 +140,7 @@ impl<P: Projection> RasterBoundsDefinition<P> {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
-pub(crate) struct RasterBounds<P: Projection, T: XYPair> {
+pub struct RasterBounds<P: Projection, T: XYPair> {
     pub(crate) min: T,
     pub(crate) max: T,
     pub(crate) spacing: GenericXYPair,
@@ -162,7 +162,7 @@ impl<P: Projection> RasterBounds<P, GenericXYPair> {
 
 impl<P: Projection> From<RasterBoundsDefinition<P>> for RasterBounds<P, GenericXYPair> {
     fn from(def: RasterBoundsDefinition<P>) -> Self {
-        RasterBounds {
+        Self {
             min: def.min,
             max: def.max,
             spacing: def.spacing,
@@ -174,7 +174,7 @@ impl<P: Projection> From<RasterBoundsDefinition<P>> for RasterBounds<P, GenericX
 
 impl<P: Projection> From<&RasterBoundsDefinition<P>> for RasterBounds<P, GenericXYPair> {
     fn from(def: &RasterBoundsDefinition<P>) -> Self {
-        RasterBounds {
+        Self {
             min: def.min,
             max: def.max,
             spacing: def.spacing,

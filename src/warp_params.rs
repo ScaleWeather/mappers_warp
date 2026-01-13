@@ -7,7 +7,7 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
-pub(super) struct WarperParameters {
+pub struct WarperParameters {
     pub scales: GenericXYPair,
     pub offsets: IJPair,
 }
@@ -35,7 +35,7 @@ impl WarperParameters {
             },
         );
 
-        Ok(WarperParameters { scales, offsets })
+        Ok(Self { scales, offsets })
     }
 }
 
@@ -125,10 +125,7 @@ fn compute_offsets_and_scales<SP: Projection, TP: Projection>(
     let y_scale = f64::from(target_bounds.shape.j) / (f64::from(src_y_size) - src_y_extra_size);
 
     (
-        IJPair {
-            i: offsets.i,
-            j: offsets.j,
-        },
+        offsets,
         GenericXYPair {
             x: x_scale,
             y: y_scale,
@@ -156,10 +153,10 @@ fn get_target_extrema_on_source<SP: Projection, TP: Projection>(
     target_bounds: &RasterBounds<TP, TargetXYPair>,
     proj_pipe: &ConversionPipe<TP, SP>,
 ) -> Result<MinMaxPair<SourceXYPair>, WarperError> {
-    let x_min = target_bounds.min.x - (0.5 * target_bounds.spacing.x);
-    let x_max = target_bounds.max.x + (0.5 * target_bounds.spacing.x);
-    let y_min = target_bounds.min.y - (0.5 * target_bounds.spacing.y);
-    let y_max = target_bounds.max.y + (0.5 * target_bounds.spacing.y);
+    let x_min = 0.5f64.mul_add(-target_bounds.spacing.x, target_bounds.min.x);
+    let x_max = 0.5f64.mul_add(target_bounds.spacing.x, target_bounds.max.x);
+    let y_min = 0.5f64.mul_add(-target_bounds.spacing.y, target_bounds.min.y);
+    let y_max = 0.5f64.mul_add(target_bounds.spacing.y, target_bounds.max.y);
 
     let u_edge_x = Array::range(x_min, x_max, target_bounds.spacing.x);
     let u_edge_y = Array::from_elem(u_edge_x.raw_dim(), y_max);
