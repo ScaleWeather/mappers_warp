@@ -76,6 +76,7 @@ pub fn inner_bench(c: &mut Criterion) -> Result<()> {
     });
 
     // PARALLEL
+    #[cfg(feature = "multithread")]
     c.bench_function("initialize_parallel", |b| {
         b.iter(|| {
             Warper::initialize_parallel::<CubicBSpline, _, _>(
@@ -85,18 +86,22 @@ pub fn inner_bench(c: &mut Criterion) -> Result<()> {
         })
     });
 
+    #[cfg(feature = "multithread")]
     c.bench_function("warp_unchecked_parallel", |b| {
         b.iter(|| warper.warp_unchecked_parallel(black_box(&source_raster)))
     });
 
+    #[cfg(feature = "multithread")]
     c.bench_function("warp_ignore_nodata_parallel", |b| {
         b.iter(|| warper.warp_ignore_nodata_parallel(black_box(&source_raster)))
     });
 
+    #[cfg(feature = "multithread")]
     c.bench_function("warp_discard_nodata_parallel", |b| {
         b.iter(|| warper.warp_discard_nodata_parallel(black_box(&source_raster)))
     });
 
+    #[cfg(feature = "multithread")]
     c.bench_function("warp_reject_nodata_parallel", |b| {
         b.iter(|| warper.warp_reject_nodata_parallel(black_box(&source_raster)))
     });
