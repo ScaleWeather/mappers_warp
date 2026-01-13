@@ -93,7 +93,9 @@ fn nan_ignore() -> Result<()> {
     #[cfg(feature = "multithread")]
     {
         let par_target_raster = warper.warp_ignore_nodata_parallel(&source_raster)?;
-        assert_eq!(par_target_raster, target_raster);
+        Zip::from(&target_raster)
+            .and(&par_target_raster)
+            .for_each(|&ser, &par| assert_approx_eq!(f64, ser, par));
     }
 
     Ok(())
@@ -190,7 +192,10 @@ fn nan_discard() -> Result<()> {
     #[cfg(feature = "multithread")]
     {
         let par_target_raster = warper.warp_discard_nodata_parallel(&source_raster)?;
-        assert_eq!(par_target_raster, target_raster);
+        // rasters with nans must be compared this way because for f64 (NaN == NaN) -> false
+        Zip::from(&target_raster)
+            .and(&par_target_raster)
+            .for_each(|&ser, &par| assert_approx_eq!(f64, ser, par));
     }
 
     Ok(())
