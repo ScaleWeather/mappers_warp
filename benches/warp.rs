@@ -1,4 +1,4 @@
-use std::hint::black_box;
+use std::{hint::black_box, time::Duration};
 
 use anyhow::{Context, Result};
 use criterion::{Criterion, criterion_group, criterion_main};
@@ -49,8 +49,11 @@ pub fn inner_bench(c: &mut Criterion) -> Result<()> {
     let _ = warper.warp_discard_nodata(&source_raster)?;
     let _ = warper.warp_reject_nodata(&source_raster)?;
 
-    // SERIAL
-    c.bench_function("initialize", |b| {
+    let mut init_group = c.benchmark_group("Initializer");
+    init_group.warm_up_time(Duration::from_secs(5));
+    init_group.measurement_time(Duration::from_secs(10));
+
+    init_group.bench_function("Serial", |b| {
         b.iter(|| {
             Warper::initialize::<CubicBSpline, _, _>(
                 black_box(&source_domain),
@@ -58,26 +61,8 @@ pub fn inner_bench(c: &mut Criterion) -> Result<()> {
             )
         })
     });
-
-    c.bench_function("warp_unchecked", |b| {
-        b.iter(|| warper.warp_unchecked(black_box(&source_raster)))
-    });
-
-    c.bench_function("warp_ignore_nodata", |b| {
-        b.iter(|| warper.warp_ignore_nodata(black_box(&source_raster)))
-    });
-
-    c.bench_function("warp_discard_nodata", |b| {
-        b.iter(|| warper.warp_discard_nodata(black_box(&source_raster)))
-    });
-
-    c.bench_function("warp_reject_nodata", |b| {
-        b.iter(|| warper.warp_reject_nodata(black_box(&source_raster)))
-    });
-
-    // PARALLEL
     #[cfg(feature = "multithreading")]
-    c.bench_function("initialize_parallel", |b| {
+    init_group.bench_function("Parallel", |b| {
         b.iter(|| {
             Warper::initialize_parallel::<CubicBSpline, _, _>(
                 black_box(&source_domain),
@@ -85,26 +70,59 @@ pub fn inner_bench(c: &mut Criterion) -> Result<()> {
             )
         })
     });
+    init_group.finish();
 
+    let mut unchecked_group = c.benchmark_group("Warp Unchecked");
+    unchecked_group.warm_up_time(Duration::from_secs(5));
+    unchecked_group.measurement_time(Duration::from_secs(10));
+
+    unchecked_group.bench_function("Serial", |b| {
+        b.iter(|| warper.warp_unchecked(black_box(&source_raster)))
+    });
     #[cfg(feature = "multithreading")]
-    c.bench_function("warp_unchecked_parallel", |b| {
+    unchecked_group.bench_function("Parallel", |b| {
         b.iter(|| warper.warp_unchecked_parallel(black_box(&source_raster)))
     });
+    unchecked_group.finish();
 
-    #[cfg(feature = "multithreading")]
-    c.bench_function("warp_ignore_nodata_parallel", |b| {
-        b.iter(|| warper.warp_ignore_nodata_parallel(black_box(&source_raster)))
+    let mut reject_group = c.benchmark_group("Warp Reject");
+    reject_group.warm_up_time(Duration::from_secs(5));
+    reject_group.measurement_time(Duration::from_secs(10));
+
+    reject_group.bench_function("Serial", |b| {
+        b.iter(|| warper.warp_reject_nodata(black_box(&source_raster)))
     });
-
     #[cfg(feature = "multithreading")]
-    c.bench_function("warp_discard_nodata_parallel", |b| {
-        b.iter(|| warper.warp_discard_nodata_parallel(black_box(&source_raster)))
-    });
-
-    #[cfg(feature = "multithreading")]
-    c.bench_function("warp_reject_nodata_parallel", |b| {
+    reject_group.bench_function("Parallel", |b| {
         b.iter(|| warper.warp_reject_nodata_parallel(black_box(&source_raster)))
     });
+    reject_group.finish();
+
+    let mut discard_group = c.benchmark_group("Warp Discard");
+    discard_group.warm_up_time(Duration::from_secs(5));
+    discard_group.measurement_time(Duration::from_secs(10));
+
+    discard_group.bench_function("Serial", |b| {
+        b.iter(|| warper.warp_discard_nodata(black_box(&source_raster)))
+    });
+    #[cfg(feature = "multithreading")]
+    discard_group.bench_function("Parallel", |b| {
+        b.iter(|| warper.warp_discard_nodata_parallel(black_box(&source_raster)))
+    });
+    discard_group.finish();
+
+    let mut ignore_group = c.benchmark_group("Warp Ignore");
+    ignore_group.warm_up_time(Duration::from_secs(5));
+    ignore_group.measurement_time(Duration::from_secs(10));
+
+    ignore_group.bench_function("Serial", |b| {
+        b.iter(|| warper.warp_ignore_nodata(black_box(&source_raster)))
+    });
+    #[cfg(feature = "multithreading")]
+    ignore_group.bench_function("Parallel", |b| {
+        b.iter(|| warper.warp_ignore_nodata_parallel(black_box(&source_raster)))
+    });
+    ignore_group.finish();
 
     Ok(())
 }
