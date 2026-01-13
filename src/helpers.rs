@@ -23,6 +23,9 @@ pub enum WarperError {
 
     #[error("Warping produced non-finite value")]
     WarpingError,
+
+    #[error("Source raster cannot contain nan values")]
+    NanError,
 }
 
 #[cfg(feature = "io")]

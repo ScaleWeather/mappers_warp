@@ -49,7 +49,7 @@ impl Warper {
     /// this source pixel is just one among other several source pixels, and it might be possible that there are invalid
     /// values in those other contributing source pixels. The weights used to take into account those invalid values
     /// will be set to zero to ignore them.
-    /// 
+    ///
     /// In short: this variant computes the filter value as if NaN points weren't there
     /// or if the result is not finite
     pub fn warp_ignore_nodata<'a, A: Into<ArrayView2<'a, f64>>>(
@@ -108,7 +108,7 @@ impl Warper {
                     *v = result;
                     FoldWhile::Continue(Ok(()))
                 } else {
-                    FoldWhile::Done(Err(WarperError::WarpingError))
+                    FoldWhile::Done(Err(WarperError::NanError))
                 }
             })
             .into_inner()?;
@@ -369,50 +369,31 @@ impl Warper {
             return Err(WarperError::InvalidRasterDimensions);
         }
 
-        let mut target_raster = Array2::from_elem(self.internals.raw_dim(), f64::NEG_INFINITY);
-
-        Zip::from(&mut target_raster)
-            .and(&self.internals)
-            .fold_while(Ok(()), |_, v, intr| {
-                let values = source_raster.slice(s![
-                    (intr.anchor_idx.1 - 1)..(intr.anchor_idx.1 + 3),
-                    (intr.anchor_idx.0 - 1)..(intr.anchor_idx.0 + 3)
-                ]);
-
-                let mut weight_accum = 0.0;
-                let mut result_accum = 0.0;
-
-                for j in 0..4 {
-                    let mut inner_weight_accum = 0.0;
-                    let mut inner_result_accum = 0.0;
-
-                    for i in 0..4 {
-                        let value = values[[j, i]];
-
-                        if value.is_nan() {
-                            return FoldWhile::Done(Err(WarperError::WarpingError));
-                        }
-                        let x_weight = intr.x_weights[i];
-                        inner_weight_accum += x_weight;
-                        inner_result_accum += x_weight * value;
-                    }
-
-                    let y_weight = intr.y_weights[j];
-
-                    weight_accum += inner_weight_accum * y_weight;
-                    result_accum += inner_result_accum * y_weight;
-                }
-
-                let result = result_accum / weight_accum;
-
-                if result.is_finite() {
-                    *v = result;
-                    FoldWhile::Continue(Ok(()))
+        Zip::from(&source_raster).par_fold(
+            || Ok(()),
+            |_, v| {
+                if v.is_nan() {
+                    Err(WarperError::NanError)
                 } else {
-                    FoldWhile::Done(Err(WarperError::WarpingError))
+                    Ok(())
                 }
-            })
-            .into_inner()?;
+            },
+            |a, b| a.and(b),
+        )?;
+
+        let target_raster = self.warp_unchecked_parallel(source_raster);
+
+        Zip::from(&target_raster).par_fold(
+            || Ok(()),
+            |_, v| {
+                if v.is_finite() {
+                    Ok(())
+                } else {
+                    Err(WarperError::WarpingError)
+                }
+            },
+            |a, b| a.and(b),
+        )?;
 
         Ok(target_raster)
     }
