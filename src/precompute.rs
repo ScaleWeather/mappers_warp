@@ -1,5 +1,5 @@
 use mappers::{ConversionPipe, Projection};
-use ndarray::Array2;
+use ndarray::{Array2, Zip};
 
 use crate::{
     IXJYPair, RasterBounds, ResamplingFilter, ResamplingKernelInternals, SourceXYPair,
@@ -142,6 +142,40 @@ pub(crate) fn precompute_internals<F: ResamplingFilter>(
     // 0.5 shift because we want to get nearest midpoint
     // but ixs, yjs are measured from the edge corner
     tgt_ixs_jys.map(|&crds| {
+        let anchor_idx = (
+            (crds.ix - 0.5).floor() as usize,
+            (crds.jy - 0.5).floor() as usize,
+        );
+
+        let delta = compute_deltas(&crds, params);
+
+        let x_weights = if params.scales.x < 1.0 {
+            [-1., 0., 1., 2.].map(|i| F::apply((i - delta.x) * params.scales.x))
+        } else {
+            [-1., 0., 1., 2.].map(|i| F::apply(i - delta.x))
+        };
+
+        let y_weights = if params.scales.y < 1.0 {
+            [-1., 0., 1., 2.].map(|j| F::apply((j - delta.y) * params.scales.y))
+        } else {
+            [-1., 0., 1., 2.].map(|j| F::apply(j - delta.y))
+        };
+
+        ResamplingKernelInternals {
+            anchor_idx,
+            x_weights,
+            y_weights,
+        }
+    })
+}
+
+pub(crate) fn precompute_internals_parallel<F: ResamplingFilter>(
+    tgt_ixs_jys: &Array2<IXJYPair>,
+    params: &WarperParameters,
+) -> Array2<ResamplingKernelInternals> {
+    // 0.5 shift because we want to get nearest midpoint
+    // but ixs, yjs are measured from the edge corner
+    Zip::from(tgt_ixs_jys).par_map_collect(|&crds| {
         let anchor_idx = (
             (crds.ix - 0.5).floor() as usize,
             (crds.jy - 0.5).floor() as usize,

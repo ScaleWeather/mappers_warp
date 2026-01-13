@@ -99,7 +99,7 @@ impl Warper {
 
         let params = WarperParameters::compute::<F, SP, TP>(&source_bounds, &target_bounds)?;
         let tgt_ixs_jys = precompute_ixs_jys_parallel(&source_bounds, &target_bounds)?;
-        let internals = precompute::precompute_internals::<F>(&tgt_ixs_jys, &params);
+        let internals = precompute::precompute_internals_parallel::<F>(&tgt_ixs_jys, &params);
         let source_shape = (
             source_bounds.shape.j as usize,
             source_bounds.shape.i as usize,
