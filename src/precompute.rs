@@ -112,7 +112,7 @@ mod tests {
 
     use super::precompute_ixs_jys;
     use crate::{
-        CubicBSpline, IXJYPair, SourceXYPair, TargetXYPair, Warper, WarperInitialize,
+        CubicBSpline, IXJYPair, SourceXYPair, TargetXYPair, Warper,
         tests::{reference_setup, reference_setup_def},
         warp_params::WarperParameters,
     };

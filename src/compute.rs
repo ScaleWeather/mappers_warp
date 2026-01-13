@@ -1,29 +1,12 @@
 use ndarray::{Array2, ArrayView2, FoldWhile, Zip, s};
 
-#[cfg(feature = "multithread")]
-#[cfg_attr(docsrs, doc(cfg(feature = "multithread")))]
-use crate::ParallelWarper;
 use crate::{Warper, WarperError};
 
-pub trait WarperCompute {
-    #[must_use]
-    fn warp_unchecked<'a, A: Into<ArrayView2<'a, f64>>>(&self, source_raster: A) -> Array2<f64>;
-    fn warp_ignore_nodata<'a, A: Into<ArrayView2<'a, f64>>>(
+impl Warper {
+    pub fn warp_unchecked<'a, A: Into<ArrayView2<'a, f64>>>(
         &self,
         source_raster: A,
-    ) -> Result<Array2<f64>, WarperError>;
-    fn warp_reject_nodata<'a, A: Into<ArrayView2<'a, f64>>>(
-        &self,
-        source_raster: A,
-    ) -> Result<Array2<f64>, WarperError>;
-    fn warp_discard_nodata<'a, A: Into<ArrayView2<'a, f64>>>(
-        &self,
-        source_raster: A,
-    ) -> Result<Array2<f64>, WarperError>;
-}
-
-impl WarperCompute for Warper {
-    fn warp_unchecked<'a, A: Into<ArrayView2<'a, f64>>>(&self, source_raster: A) -> Array2<f64> {
+    ) -> Array2<f64> {
         let source_raster: ArrayView2<f64> = source_raster.into();
 
         let target_raster = self.internals.map(|intr| {
@@ -65,7 +48,7 @@ impl WarperCompute for Warper {
     // this source pixel is just one among other several source pixels, and it might be possible that there are invalid
     // values in those other contributing source pixels. The weights used to take into account those invalid values
     // will be set to zero to ignore them.
-    fn warp_ignore_nodata<'a, A: Into<ArrayView2<'a, f64>>>(
+    pub fn warp_ignore_nodata<'a, A: Into<ArrayView2<'a, f64>>>(
         &self,
         source_raster: A,
     ) -> Result<Array2<f64>, WarperError> {
@@ -129,7 +112,7 @@ impl WarperCompute for Warper {
         Ok(target_raster)
     }
 
-    fn warp_reject_nodata<'a, A: Into<ArrayView2<'a, f64>>>(
+    pub fn warp_reject_nodata<'a, A: Into<ArrayView2<'a, f64>>>(
         &self,
         source_raster: A,
     ) -> Result<Array2<f64>, WarperError> {
@@ -189,7 +172,7 @@ impl WarperCompute for Warper {
         Ok(target_raster)
     }
 
-    fn warp_discard_nodata<'a, A: Into<ArrayView2<'a, f64>>>(
+    pub fn warp_discard_nodata<'a, A: Into<ArrayView2<'a, f64>>>(
         &self,
         source_raster: A,
     ) -> Result<Array2<f64>, WarperError> {
@@ -253,8 +236,11 @@ impl WarperCompute for Warper {
 
 #[cfg_attr(docsrs, doc(cfg(feature = "multithread")))]
 #[cfg(feature = "multithread")]
-impl WarperCompute for ParallelWarper {
-    fn warp_unchecked<'a, A: Into<ArrayView2<'a, f64>>>(&self, source_raster: A) -> Array2<f64> {
+impl Warper {
+    pub fn warp_unchecked_parallel<'a, A: Into<ArrayView2<'a, f64>>>(
+        &self,
+        source_raster: A,
+    ) -> Array2<f64> {
         let source_raster: ArrayView2<f64> = source_raster.into();
 
         let target_raster = Zip::from(&self.internals).par_map_collect(|intr| {
@@ -296,7 +282,7 @@ impl WarperCompute for ParallelWarper {
     // this source pixel is just one among other several source pixels, and it might be possible that there are invalid
     // values in those other contributing source pixels. The weights used to take into account those invalid values
     // will be set to zero to ignore them.
-    fn warp_ignore_nodata<'a, A: Into<ArrayView2<'a, f64>>>(
+    pub fn warp_ignore_nodata_parallel<'a, A: Into<ArrayView2<'a, f64>>>(
         &self,
         source_raster: A,
     ) -> Result<Array2<f64>, WarperError> {
@@ -360,7 +346,7 @@ impl WarperCompute for ParallelWarper {
         Ok(target_raster)
     }
 
-    fn warp_reject_nodata<'a, A: Into<ArrayView2<'a, f64>>>(
+    pub fn warp_reject_nodata_parallel<'a, A: Into<ArrayView2<'a, f64>>>(
         &self,
         source_raster: A,
     ) -> Result<Array2<f64>, WarperError> {
@@ -420,7 +406,7 @@ impl WarperCompute for ParallelWarper {
         Ok(target_raster)
     }
 
-    fn warp_discard_nodata<'a, A: Into<ArrayView2<'a, f64>>>(
+    pub fn warp_discard_nodata_parallel<'a, A: Into<ArrayView2<'a, f64>>>(
         &self,
         source_raster: A,
     ) -> Result<Array2<f64>, WarperError> {

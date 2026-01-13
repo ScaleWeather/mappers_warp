@@ -5,8 +5,7 @@ use mappers::{
     projections::{LambertConformalConic, LongitudeLatitude},
 };
 #[cfg(feature = "multithread")]
-use mappers_warp::ParallelWarper;
-use mappers_warp::{CubicBSpline, RasterBoundsDefinition, Warper, WarperCompute, WarperInitialize};
+use mappers_warp::{CubicBSpline, RasterBoundsDefinition, Warper};
 use ndarray::{Array2, Zip, s};
 
 mod utils;
@@ -47,12 +46,7 @@ fn waves_unchecked() -> Result<()> {
 
     #[cfg(feature = "multithread")]
     {
-        let par_warper = ParallelWarper::initialize::<
-            CubicBSpline,
-            LongitudeLatitude,
-            LambertConformalConic,
-        >(&source_bounds, &target_bounds)?;
-        let par_target_raster = par_warper.warp_unchecked(&source_raster);
+        let par_target_raster = warper.warp_unchecked_parallel(&source_raster);
         assert_eq!(par_target_raster, target_raster);
     }
 
@@ -99,12 +93,7 @@ fn nan_ignore() -> Result<()> {
 
     #[cfg(feature = "multithread")]
     {
-        let par_warper = ParallelWarper::initialize::<
-            CubicBSpline,
-            LongitudeLatitude,
-            LambertConformalConic,
-        >(&source_bounds, &target_bounds)?;
-        let par_target_raster = par_warper.warp_ignore_nodata(&source_raster)?;
+        let par_target_raster = warper.warp_ignore_nodata_parallel(&source_raster)?;
         assert_eq!(par_target_raster, target_raster);
     }
 
@@ -154,12 +143,7 @@ fn nan_reject() -> Result<()> {
 
     #[cfg(feature = "multithread")]
     {
-        let par_warper = ParallelWarper::initialize::<
-            CubicBSpline,
-            LongitudeLatitude,
-            LambertConformalConic,
-        >(&source_bounds, &target_bounds)?;
-        let par_target_raster = par_warper.warp_reject_nodata(&source_raster);
+        let par_target_raster = warper.warp_reject_nodata_parallel(&source_raster);
         assert!(par_target_raster.is_err());
     }
 
@@ -206,12 +190,7 @@ fn nan_discard() -> Result<()> {
 
     #[cfg(feature = "multithread")]
     {
-        let par_warper = ParallelWarper::initialize::<
-            CubicBSpline,
-            LongitudeLatitude,
-            LambertConformalConic,
-        >(&source_bounds, &target_bounds)?;
-        let par_target_raster = par_warper.warp_discard_nodata(&source_raster)?;
+        let par_target_raster = warper.warp_discard_nodata_parallel(&source_raster)?;
         assert_eq!(par_target_raster, target_raster);
     }
 
@@ -251,14 +230,9 @@ fn non_finite_result() -> Result<()> {
 
     #[cfg(feature = "multithread")]
     {
-        let par_warper = ParallelWarper::initialize::<
-            CubicBSpline,
-            LongitudeLatitude,
-            LambertConformalConic,
-        >(&source_bounds, &target_bounds)?;
-        assert!(par_warper.warp_discard_nodata(&source_raster).is_err());
-        assert!(par_warper.warp_reject_nodata(&source_raster).is_err());
-        assert!(par_warper.warp_ignore_nodata(&source_raster).is_err());
+        assert!(warper.warp_discard_nodata_parallel(&source_raster).is_err());
+        assert!(warper.warp_reject_nodata_parallel(&source_raster).is_err());
+        assert!(warper.warp_ignore_nodata_parallel(&source_raster).is_err());
     }
 
     Ok(())

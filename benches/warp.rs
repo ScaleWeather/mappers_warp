@@ -6,7 +6,7 @@ use mappers::{
     Ellipsoid,
     projections::{LambertConformalConic, LongitudeLatitude},
 };
-use mappers_warp::{CubicBSpline, RasterBoundsDefinition, Warper, WarperCompute, WarperInitialize};
+use mappers_warp::{CubicBSpline, RasterBoundsDefinition, Warper};
 
 pub fn criterion_benchmark(c: &mut Criterion) {
     inner_bench(c).unwrap()
@@ -53,6 +53,7 @@ pub fn inner_bench(c: &mut Criterion) -> Result<()> {
         })
     });
 
+    // SERIAL
     c.bench_function("warp_unchecked", |b| {
         b.iter(|| warper.warp_unchecked(black_box(&source_raster)))
     });
@@ -67,6 +68,23 @@ pub fn inner_bench(c: &mut Criterion) -> Result<()> {
 
     c.bench_function("warp_reject_nodata", |b| {
         b.iter(|| warper.warp_reject_nodata(black_box(&source_raster)))
+    });
+
+    // PARALLEL
+    c.bench_function("warp_unchecked_parallel", |b| {
+        b.iter(|| warper.warp_unchecked_parallel(black_box(&source_raster)))
+    });
+
+    c.bench_function("warp_ignore_nodata_parallel", |b| {
+        b.iter(|| warper.warp_ignore_nodata_parallel(black_box(&source_raster)))
+    });
+
+    c.bench_function("warp_discard_nodata_parallel", |b| {
+        b.iter(|| warper.warp_discard_nodata_parallel(black_box(&source_raster)))
+    });
+
+    c.bench_function("warp_reject_nodata_parallel", |b| {
+        b.iter(|| warper.warp_reject_nodata_parallel(black_box(&source_raster)))
     });
 
     // error check

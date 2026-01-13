@@ -28,7 +28,6 @@ mod io;
 
 use std::fmt::Debug;
 
-pub use compute::WarperCompute;
 pub use filters::{CubicBSpline, MitchellNetravali, ResamplingFilter};
 #[cfg(feature = "io")]
 pub use helpers::WarperIOError;
@@ -43,15 +42,6 @@ use ndarray::Array2;
 use rkyv::{Archive, Deserialize, Serialize};
 
 use crate::{precompute::precompute_ixs_jys, warp_params::WarperParameters};
-
-pub trait WarperInitialize {
-    fn initialize<F: ResamplingFilter, SP: Projection, TP: Projection>(
-        source_bounds: &RasterBoundsDefinition<SP>,
-        target_bounds: &RasterBoundsDefinition<TP>,
-    ) -> Result<Self, WarperError>
-    where
-        Self: Sized;
-}
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "io", derive(Archive, Deserialize, Serialize))]
@@ -69,8 +59,8 @@ pub struct Warper {
     internals: Array2<ResamplingKernelInternals>,
 }
 
-impl WarperInitialize for Warper {
-    fn initialize<F: ResamplingFilter, SP: Projection, TP: Projection>(
+impl Warper {
+    pub fn initialize<F: ResamplingFilter, SP: Projection, TP: Projection>(
         source_bounds: &RasterBoundsDefinition<SP>,
         target_bounds: &RasterBoundsDefinition<TP>,
     ) -> Result<Self, WarperError> {
@@ -92,23 +82,11 @@ impl WarperInitialize for Warper {
             internals,
         })
     }
-}
 
-#[cfg(feature = "multithread")]
-#[cfg_attr(docsrs, doc(cfg(feature = "multithread")))]
-#[derive(Debug, Clone, PartialEq)]
-pub struct ParallelWarper {
-    /// uses ndarray convention [y, x]
-    source_shape: (usize, usize),
-    /// internals are in a shape of target raster
-    internals: Array2<ResamplingKernelInternals>,
-}
-
-#[cfg(feature = "multithread")]
-#[cfg_attr(docsrs, doc(cfg(feature = "multithread")))]
-impl WarperInitialize for ParallelWarper {
+    #[cfg(feature = "multithread")]
     #[cfg_attr(docsrs, doc(cfg(feature = "multithread")))]
-    fn initialize<F: ResamplingFilter, SP: Projection, TP: Projection>(
+    /// Same as initialize but uses multithreading in some computations.
+    fn initialize_parallel<F: ResamplingFilter, SP: Projection, TP: Projection>(
         source_bounds: &RasterBoundsDefinition<SP>,
         target_bounds: &RasterBoundsDefinition<TP>,
     ) -> Result<Self, WarperError> {

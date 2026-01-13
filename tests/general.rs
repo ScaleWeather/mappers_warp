@@ -5,8 +5,8 @@ use mappers::{
     projections::{AzimuthalEquidistant, LambertConformalConic, LongitudeLatitude},
 };
 use mappers_warp::{
-    CubicBSpline, MitchellNetravali, RasterBoundsDefinition, Warper, WarperCompute,
-    WarperInitialize, raster_constant_pad,
+    CubicBSpline, MitchellNetravali, RasterBoundsDefinition, Warper,
+    raster_constant_pad,
 };
 use ndarray::{Array2, Zip};
 
