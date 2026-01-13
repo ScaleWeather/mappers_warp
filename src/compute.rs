@@ -10,8 +10,6 @@ impl Warper {
     ) -> Array2<f64> {
         let source_raster: ArrayView2<f64> = source_raster.into();
 
-        
-
         self.internals.map(|intr| {
             let values = source_raster.slice(s![
                 (intr.anchor_idx.1 - 1)..(intr.anchor_idx.1 + 3),
@@ -249,8 +247,6 @@ impl Warper {
         source_raster: A,
     ) -> Array2<f64> {
         let source_raster: ArrayView2<f64> = source_raster.into();
-
-        
 
         Zip::from(&self.internals).par_map_collect(|intr| {
             let values = source_raster.slice(s![

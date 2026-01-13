@@ -1,5 +1,5 @@
 use mappers::{ConversionPipe, Projection};
-use ndarray::{Array2};
+use ndarray::Array2;
 #[cfg(feature = "multithreading")]
 use ndarray::Zip;
 

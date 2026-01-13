@@ -55,7 +55,8 @@ impl ResamplingFilter for MitchellNetravali {
         if n < 1.0 {
             (7.0_f64 / 6.0).mul_add(n.powi(3), -(2.0 * n.powi(2))) + 8.0 / 9.0
         } else if (1.0..2.0).contains(&n) {
-            (10.0_f64 / 3.0).mul_add(-n, (-7.0_f64 / 18.0).mul_add(n.powi(3), 2.0 * n.powi(2))) + 16.0 / 9.0
+            (10.0_f64 / 3.0).mul_add(-n, (-7.0_f64 / 18.0).mul_add(n.powi(3), 2.0 * n.powi(2)))
+                + 16.0 / 9.0
         } else {
             0.0
         }
