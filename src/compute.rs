@@ -400,6 +400,8 @@ impl Warper {
 
     #[cfg(feature = "multithreading")]
     #[cfg_attr(docsrs, doc(cfg(feature = "multithreading")))]
+    /// This implementation catches warp operation producing NaNs (that is nans resulting from computation error
+    /// not those resulting from nodata), but does not early return. 
     pub fn warp_discard_nodata_parallel<'a, A: Into<ArrayView2<'a, f64>>>(
         &self,
         source_raster: A,
@@ -416,47 +418,50 @@ impl Warper {
 
         Zip::from(&mut target_raster)
             .and(&self.internals)
-            .fold_while(Ok(()), |_, v, intr| {
-                let values = source_raster.slice(s![
-                    (intr.anchor_idx.1 - 1)..(intr.anchor_idx.1 + 3),
-                    (intr.anchor_idx.0 - 1)..(intr.anchor_idx.0 + 3)
-                ]);
+            .par_fold(
+                || Ok(()),
+                |_, v, intr| {
+                    let values = source_raster.slice(s![
+                        (intr.anchor_idx.1 - 1)..(intr.anchor_idx.1 + 3),
+                        (intr.anchor_idx.0 - 1)..(intr.anchor_idx.0 + 3)
+                    ]);
 
-                let mut weight_accum = 0.0;
-                let mut result_accum = 0.0;
+                    let mut weight_accum = 0.0;
+                    let mut result_accum = 0.0;
 
-                for j in 0..4 {
-                    let mut inner_weight_accum = 0.0;
-                    let mut inner_result_accum = 0.0;
+                    for j in 0..4 {
+                        let mut inner_weight_accum = 0.0;
+                        let mut inner_result_accum = 0.0;
 
-                    for i in 0..4 {
-                        let value = values[[j, i]];
+                        for i in 0..4 {
+                            let value = values[[j, i]];
 
-                        if value.is_nan() {
-                            *v = f64::NAN;
-                            return FoldWhile::Continue(Ok(()));
+                            if value.is_nan() {
+                                *v = f64::NAN;
+                                return Ok(());
+                            }
+                            let x_weight = intr.x_weights[i];
+                            inner_weight_accum += x_weight;
+                            inner_result_accum += x_weight * value;
                         }
-                        let x_weight = intr.x_weights[i];
-                        inner_weight_accum += x_weight;
-                        inner_result_accum += x_weight * value;
+
+                        let y_weight = intr.y_weights[j];
+
+                        weight_accum += inner_weight_accum * y_weight;
+                        result_accum += inner_result_accum * y_weight;
                     }
 
-                    let y_weight = intr.y_weights[j];
+                    let result = result_accum / weight_accum;
 
-                    weight_accum += inner_weight_accum * y_weight;
-                    result_accum += inner_result_accum * y_weight;
-                }
-
-                let result = result_accum / weight_accum;
-
-                if result.is_finite() {
-                    *v = result;
-                    FoldWhile::Continue(Ok(()))
-                } else {
-                    FoldWhile::Done(Err(WarperError::WarpingError))
-                }
-            })
-            .into_inner()?;
+                    if result.is_finite() {
+                        *v = result;
+                        Ok(())
+                    } else {
+                        Err(WarperError::WarpingError)
+                    }
+                },
+                |a, b| a.and(b),
+            )?;
 
         Ok(target_raster)
     }
