@@ -4,7 +4,6 @@ use mappers::{
     Ellipsoid,
     projections::{LambertConformalConic, LongitudeLatitude},
 };
-#[cfg(feature = "multithread")]
 use mappers_warp::{CubicBSpline, RasterBoundsDefinition, Warper};
 use ndarray::{Array2, Zip, s};
 

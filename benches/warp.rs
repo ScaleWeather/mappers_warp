@@ -44,16 +44,21 @@ pub fn inner_bench(c: &mut Criterion) -> Result<()> {
         data
     };
 
+    // error check
+    let _ = warper.warp_ignore_nodata(&source_raster)?;
+    let _ = warper.warp_discard_nodata(&source_raster)?;
+    let _ = warper.warp_reject_nodata(&source_raster)?;
+
+    // SERIAL
     c.bench_function("initialize", |b| {
         b.iter(|| {
-            Warper::initialize::<CubicBSpline, LongitudeLatitude, LambertConformalConic>(
+            Warper::initialize::<CubicBSpline, _, _>(
                 black_box(&source_domain),
                 black_box(&target_domain),
             )
         })
     });
 
-    // SERIAL
     c.bench_function("warp_unchecked", |b| {
         b.iter(|| warper.warp_unchecked(black_box(&source_raster)))
     });
@@ -71,6 +76,15 @@ pub fn inner_bench(c: &mut Criterion) -> Result<()> {
     });
 
     // PARALLEL
+    c.bench_function("initialize_parallel", |b| {
+        b.iter(|| {
+            Warper::initialize_parallel::<CubicBSpline, _, _>(
+                black_box(&source_domain),
+                black_box(&target_domain),
+            )
+        })
+    });
+
     c.bench_function("warp_unchecked_parallel", |b| {
         b.iter(|| warper.warp_unchecked_parallel(black_box(&source_raster)))
     });
@@ -86,11 +100,6 @@ pub fn inner_bench(c: &mut Criterion) -> Result<()> {
     c.bench_function("warp_reject_nodata_parallel", |b| {
         b.iter(|| warper.warp_reject_nodata_parallel(black_box(&source_raster)))
     });
-
-    // error check
-    let _ = warper.warp_ignore_nodata(&source_raster)?;
-    let _ = warper.warp_discard_nodata(&source_raster)?;
-    let _ = warper.warp_reject_nodata(&source_raster)?;
 
     Ok(())
 }

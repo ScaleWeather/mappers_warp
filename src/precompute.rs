@@ -1,4 +1,4 @@
-use mappers::Projection;
+use mappers::{ConversionPipe, Projection};
 use ndarray::Array2;
 
 use crate::{
@@ -32,16 +32,14 @@ pub(crate) fn precompute_ixs_jys<SP: Projection, TP: Projection>(
             target_bounds.shape.i as usize,
         ),
         |(j, i)| {
-            // 0.5 shift is because we are measuring from edge corner to midpoint
-            let tgt_x = tgt_ul_edge_corner.x + ((i as f64 + 0.5) * target_bounds.spacing.x);
-            let tgt_y = tgt_ul_edge_corner.y - ((j as f64 + 0.5) * target_bounds.spacing.y);
-
-            let (src_x, src_y) = proj_pipe.convert_unchecked(tgt_x, tgt_y);
-
-            IXJYPair {
-                ix: (src_x - src_ul_edge_corner.x) * conversion_scaling.x,
-                jy: (src_ul_edge_corner.y - src_y) * conversion_scaling.y,
-            }
+            precompute_coords(
+                (i, j),
+                target_bounds,
+                tgt_ul_edge_corner,
+                src_ul_edge_corner,
+                conversion_scaling,
+                proj_pipe,
+            )
         },
     );
 
@@ -54,6 +52,87 @@ pub(crate) fn precompute_ixs_jys<SP: Projection, TP: Projection>(
     })?;
 
     Ok(precomputed_coords)
+}
+
+#[cfg(feature = "multithread")]
+pub(crate) fn precompute_ixs_jys_parallel<SP: Projection, TP: Projection>(
+    source_bounds: &RasterBounds<SP, SourceXYPair>,
+    target_bounds: &RasterBounds<TP, TargetXYPair>,
+) -> Result<Array2<IXJYPair>, WarperError> {
+    use ndarray::Zip;
+
+    let tgt_ul_edge_corner = SourceXYPair {
+        x: target_bounds.min.x - (0.5 * target_bounds.spacing.x),
+        y: target_bounds.max.y + (0.5 * target_bounds.spacing.y),
+    };
+    let src_ul_edge_corner = SourceXYPair {
+        x: source_bounds.min.x - (0.5 * source_bounds.spacing.x),
+        y: source_bounds.max.y + (0.5 * source_bounds.spacing.y),
+    };
+
+    let conversion_scaling = GenericXYPair {
+        x: 1.0 / source_bounds.spacing.x,
+        y: 1.0 / source_bounds.spacing.y,
+    };
+
+    let proj_pipe = &target_bounds.proj.pipe_to(&source_bounds.proj);
+
+    let precomputed_coords = Array2::from_shape_fn(
+        (
+            target_bounds.shape.j as usize,
+            target_bounds.shape.i as usize,
+        ),
+        |(j, i)| (i, j),
+    );
+
+    let precomputed_coords = Zip::from(&precomputed_coords).par_map_collect(|&(i, j)| {
+        precompute_coords(
+            (i, j),
+            target_bounds,
+            tgt_ul_edge_corner,
+            src_ul_edge_corner,
+            conversion_scaling,
+            proj_pipe,
+        )
+    });
+
+    Zip::from(&precomputed_coords).par_fold(
+        || Ok(()),
+        |_, v| {
+            if !v.ix.is_finite() || !v.jy.is_finite() {
+                Err(WarperError::ConversionError)
+            } else {
+                Ok(())
+            }
+        },
+        |a, b| a.and(b),
+    )?;
+
+    Ok(precomputed_coords)
+}
+
+#[inline]
+fn precompute_coords<SP: Projection, TP: Projection>(
+    ij: (usize, usize),
+    target_bounds: &RasterBounds<TP, TargetXYPair>,
+    tgt_ul_edge_corner: SourceXYPair,
+    src_ul_edge_corner: SourceXYPair,
+    conversion_scaling: GenericXYPair,
+    proj_pipe: &ConversionPipe<TP, SP>,
+) -> IXJYPair {
+    let i = ij.0;
+    let j = ij.1;
+
+    // 0.5 shift is because we are measuring from edge corner to midpoint
+    let tgt_x = tgt_ul_edge_corner.x + ((i as f64 + 0.5) * target_bounds.spacing.x);
+    let tgt_y = tgt_ul_edge_corner.y - ((j as f64 + 0.5) * target_bounds.spacing.y);
+
+    let (src_x, src_y) = proj_pipe.convert_unchecked(tgt_x, tgt_y);
+
+    IXJYPair {
+        ix: (src_x - src_ul_edge_corner.x) * conversion_scaling.x,
+        jy: (src_ul_edge_corner.y - src_y) * conversion_scaling.y,
+    }
 }
 
 pub(crate) fn precompute_internals<F: ResamplingFilter>(

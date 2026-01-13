@@ -86,11 +86,29 @@ impl Warper {
     #[cfg(feature = "multithread")]
     #[cfg_attr(docsrs, doc(cfg(feature = "multithread")))]
     /// Same as initialize but uses multithreading in some computations.
-    fn initialize_parallel<F: ResamplingFilter, SP: Projection, TP: Projection>(
+    pub fn initialize_parallel<F: ResamplingFilter, SP: Projection, TP: Projection>(
         source_bounds: &RasterBoundsDefinition<SP>,
         target_bounds: &RasterBoundsDefinition<TP>,
     ) -> Result<Self, WarperError> {
-        todo!()
+        use crate::precompute::precompute_ixs_jys_parallel;
+
+        let source_bounds =
+            RasterBounds::<SP, GenericXYPair>::from(source_bounds).cast_xy_pairs::<SourceXYPair>();
+        let target_bounds =
+            RasterBounds::<TP, GenericXYPair>::from(target_bounds).cast_xy_pairs::<TargetXYPair>();
+
+        let params = WarperParameters::compute::<F, SP, TP>(&source_bounds, &target_bounds)?;
+        let tgt_ixs_jys = precompute_ixs_jys_parallel(&source_bounds, &target_bounds)?;
+        let internals = precompute::precompute_internals::<F>(&tgt_ixs_jys, &params);
+        let source_shape = (
+            source_bounds.shape.j as usize,
+            source_bounds.shape.i as usize,
+        );
+
+        Ok(Self {
+            source_shape,
+            internals,
+        })
     }
 }
 
