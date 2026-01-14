@@ -105,7 +105,7 @@ impl Warper {
                     result_accum += inner_result_accum * y_weight;
                 }
 
-                if (weight_accum - 0.0).abs() < f64::EPSILON {
+                if (weight_accum).abs() < f64::EPSILON {
                     *v = f64::NAN;
                     return FoldWhile::Continue(Ok(()));
                 }
@@ -332,7 +332,7 @@ impl Warper {
                         result_accum += inner_result_accum * y_weight;
                     }
 
-                    if (weight_accum - 0.0).abs() < f64::EPSILON {
+                    if (weight_accum).abs() < f64::EPSILON {
                         *v = f64::NAN;
                         return Ok(());
                     }
