@@ -1,0 +1,45 @@
+name: validate
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build, test and benchmark on Ubuntu
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+      - name: Prepare environment
+        run: |
+          cargo install cargo-criterion
+          cargo clean
+      - name: Check release build
+        run: |
+          cargo build --release --no-default-features
+          cargo build --release --features "multithreading"
+          cargo build --release --features "io"
+          cargo build --release --all-features
+      - name: Check with clippy
+        run: |
+          cargo clippy --no-default-features -- -D warnings
+          cargo clippy --features "multithreading" -- -D warnings
+          cargo clippy --features "io" -- -D warnings
+          cargo clippy --all-features -- -D warnings
+      - name: Check tests
+        run: |
+          cargo test --no-default-features
+          cargo test --features "multithreading"
+          cargo test --features "io"
+          cargo test --all-features
+      - name: Benchmark with criterion
+        run: |
+          cargo criterion --all-features
