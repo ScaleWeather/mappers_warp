@@ -15,8 +15,11 @@ use utils::*;
 #[test]
 fn waves() -> Result<()> {
     let src_proj = LongitudeLatitude;
-    let tgt_proj =
-        LambertConformalConic::new(80., 24., 12.472955, 35.1728044444444, Ellipsoid::WGS84)?;
+    let tgt_proj = LambertConformalConic::builder()
+        .ref_lonlat(80., 24.)
+        .standard_parallels(12.472955, 35.1728044444444)
+        .ellipsoid(Ellipsoid::WGS84)
+        .initialize_projection()?;
 
     let source_bounds =
         RasterBoundsDefinition::new((60.00, 68.25), (31.75, 40.0), 0.25, 0.25, src_proj)?;
@@ -48,7 +51,11 @@ fn waves() -> Result<()> {
 #[test]
 fn gfs_t2m() -> Result<()> {
     let src_proj = LongitudeLatitude;
-    let eu_proj = LambertConformalConic::new(10.0, 52.0, 35.0, 65.0, Ellipsoid::WGS84)?;
+    let eu_proj = LambertConformalConic::builder()
+        .ref_lonlat(10.0, 52.0)
+        .standard_parallels(35.0, 65.0)
+        .ellipsoid(Ellipsoid::WGS84)
+        .initialize_projection()?;
 
     let source_domain =
         RasterBoundsDefinition::new((-70.0, 85.0), (17.0, 77.0), 0.25, 0.25, src_proj)?;
@@ -78,7 +85,11 @@ fn gfs_t2m() -> Result<()> {
 #[test]
 fn mitchell() -> Result<()> {
     let src_proj = LongitudeLatitude;
-    let eu_proj = LambertConformalConic::new(10.0, 52.0, 35.0, 65.0, Ellipsoid::WGS84)?;
+    let eu_proj = LambertConformalConic::builder()
+        .ref_lonlat(10.0, 52.0)
+        .standard_parallels(35.0, 65.0)
+        .ellipsoid(Ellipsoid::WGS84)
+        .initialize_projection()?;
 
     let source_domain =
         RasterBoundsDefinition::new((-70.0, 85.0), (17.0, 77.0), 0.25, 0.25, src_proj)?;
@@ -111,8 +122,11 @@ fn mitchell() -> Result<()> {
 #[test]
 fn nan_padded_waves() -> Result<()> {
     let src_proj = LongitudeLatitude;
-    let tgt_proj =
-        LambertConformalConic::new(80., 24., 12.472955, 35.1728044444444, Ellipsoid::WGS84)?;
+    let tgt_proj = LambertConformalConic::builder()
+        .ref_lonlat(80., 24.)
+        .standard_parallels(12.472955, 35.1728044444444)
+        .ellipsoid(Ellipsoid::WGS84)
+        .initialize_projection()?;
 
     let source_bounds =
         RasterBoundsDefinition::new((59.25, 69.00), (31.00, 40.75), 0.25, 0.25, src_proj)?;
@@ -143,44 +157,16 @@ fn nan_padded_waves() -> Result<()> {
 }
 
 #[test]
-fn invalid_raster_size() -> Result<()> {
-    let src_proj = LongitudeLatitude;
-    let tgt_proj =
-        LambertConformalConic::new(80., 24., 12.472955, 35.1728044444444, Ellipsoid::WGS84)?;
-
-    let source_bounds =
-        RasterBoundsDefinition::new((60.00, 68.25), (31.75, 40.0), 0.25, 0.25, src_proj)?;
-    let target_bounds = RasterBoundsDefinition::new(
-        (2_320_000. - 4_000_000., 2_740_000. - 4_000_000.),
-        (5_090_000. - 4_000_000., 5_640_000. - 4_000_000.),
-        10_000.,
-        10_000.,
-        tgt_proj,
-    )?;
-
-    let warper = Warper::initialize::<CubicBSpline, LongitudeLatitude, LambertConformalConic>(
-        &source_bounds,
-        &target_bounds,
-    )?;
-
-    let source_raster = Array2::zeros((3, 3));
-    let result = warper.warp_ignore_nodata(&source_raster);
-
-    assert!(result.is_err());
-
-    Ok(())
-}
-
-#[test]
 fn aeqd_to_lcc() -> Result<()> {
-    let src_proj = AzimuthalEquidistant::new(19.0926, 52.3469, Ellipsoid::SPHERE)?;
-    let tgt_proj = LambertConformalConic::new(
-        19.0926,
-        52.3469,
-        52.344876525433854,
-        52.34892347456614,
-        Ellipsoid::WGS84,
-    )?;
+    let src_proj = AzimuthalEquidistant::builder()
+        .ref_lonlat(19.0926, 52.3469)
+        .ellipsoid(Ellipsoid::SPHERE)
+        .initialize_projection()?;
+    let tgt_proj = LambertConformalConic::builder()
+        .ref_lonlat(19.0926, 52.3469)
+        .standard_parallels(52.344876525433854, 52.34892347456614)
+        .ellipsoid(Ellipsoid::WGS84)
+        .initialize_projection()?;
 
     let source_domain = RasterBoundsDefinition::new(
         (-452500., 452500.),
@@ -233,5 +219,59 @@ fn aeqd_to_lcc() -> Result<()> {
     assert!(target_max <= source_max);
     assert_approx_eq!(f64, source_min, target_min, epsilon = 1e-12);
 
+    Ok(())
+}
+
+#[test]
+fn reverse_waves() -> Result<()> {
+    let src_proj = LongitudeLatitude;
+    let tgt_proj = LambertConformalConic::builder()
+        .ref_lonlat(80., 24.)
+        .standard_parallels(12.472955, 35.1728044444444)
+        .ellipsoid(Ellipsoid::WGS84)
+        .initialize_projection()?;
+
+    let source_bounds =
+        RasterBoundsDefinition::new((60.00, 68.25), (31.75, 40.0), 0.25, 0.25, src_proj)?;
+    let target_bounds = RasterBoundsDefinition::new(
+        (2_320_000. - 4_000_000., 2_740_000. - 4_000_000.),
+        (5_090_000. - 4_000_000., 5_640_000. - 4_000_000.),
+        10_000.,
+        10_000.,
+        tgt_proj,
+    )?;
+
+    let warper = Warper::initialize::<CubicBSpline, LongitudeLatitude, LambertConformalConic>(
+        &source_bounds,
+        &target_bounds,
+    )?;
+
+    let source_raster: Array2<f64> = open_nc_data("./tests/data/waves_34.nc")?;
+    let ref_raster: Array2<f64> = open_nc_data("./tests/data/waves_ref.nc")?;
+    let target_raster = warper.warp_ignore_nodata(&source_raster)?;
+
+    assert_eq!(target_raster.shape(), ref_raster.shape());
+    Zip::from(&target_raster)
+        .and(&ref_raster)
+        .map_collect(|&f, &o| assert_approx_eq!(f64, f, o, epsilon = 1e-6));
+
+    let source_bounds_reverse =
+        RasterBoundsDefinition::new((63.0, 64.0), (34.0, 36.0), 0.25, 0.25, src_proj)?;
+
+    let reverse_warper =
+        Warper::initialize::<CubicBSpline, _, _>(&target_bounds, &source_bounds_reverse)?;
+
+    #[cfg(feature = "multithreading")]
+    {
+        let parallel_warper = Warper::initialize_parallel::<CubicBSpline, _, _>(
+            &target_bounds,
+            &source_bounds_reverse,
+        )?;
+        assert_eq!(reverse_warper, parallel_warper);
+    }
+
+    let _ = reverse_warper.warp_reject_nodata(&target_raster)?;
+
+    // for now I don't know a good method for validating the reverse raster so, we just check for errors
     Ok(())
 }

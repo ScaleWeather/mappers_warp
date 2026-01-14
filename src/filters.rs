@@ -5,6 +5,7 @@ pub trait ResamplingFilter {
     const Y_RADIUS: f64;
 }
 
+/// B = 1, C = 0
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct CubicBSpline;
 
@@ -53,9 +54,10 @@ impl ResamplingFilter for MitchellNetravali {
         let n = x.abs();
 
         if n < 1.0 {
-            (7.0 / 6.0) * n.powi(3) - 2.0 * n.powi(2) + 8.0 / 9.0
+            (7.0_f64 / 6.0).mul_add(n.powi(3), -(2.0 * n.powi(2))) + 8.0 / 9.0
         } else if (1.0..2.0).contains(&n) {
-            -7.0 / 18.0 * n.powi(3) + 2.0 * n.powi(2) - 10.0 / 3.0 * n + 16.0 / 9.0
+            (10.0_f64 / 3.0).mul_add(-n, (-7.0_f64 / 18.0).mul_add(n.powi(3), 2.0 * n.powi(2)))
+                + 16.0 / 9.0
         } else {
             0.0
         }

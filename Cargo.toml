@@ -1,6 +1,6 @@
 [package]
 name = "mappers_warp"
-version = "0.0.9"
+version = "0.1.0-alpha.1"
 edition = "2024"
 publish = true
 authors = ["Jakub Lewandowski <scaleweather@gmail.com>"]
@@ -12,27 +12,26 @@ license = "Apache-2.0"
 exclude = [".github/*"]
 
 [dependencies]
-ndarray = { version = "0.16", default-features = false, features = ["std"] }
+mappers = { version = "0.8", default-features = false }
+ndarray = { version = "0.17", default-features = false, features = ["std"] }
 thiserror = { version = "2.0", default-features = false }
-bincode = { version = "2.0", default-features = false, optional = true, features = [
+
+rkyv = { version = "0.8", default-features = false, optional = true, features = [
     "std",
-    "serde",
+    "bytecheck",
 ] }
-serde = { version = "1.0", default-features = false, optional = true, features = [
-    "derive",
-] }
-mappers = { version = "0.7", default-features = false }
 
 [dev-dependencies]
 float-cmp = { version = "0.10" }
 # something, something, dependecies something
 netcdf = { version = "0.11", features = ["ndarray", "static"] }
 anyhow = { version = "1.0" }
-criterion = { version = "0.7" }
+criterion = { version = "0.8" }
 
 [features]
 default = []
-io = ["ndarray/serde", "bincode", "serde"]
+io = ["rkyv"]
+multithreading = ["ndarray/rayon"]
 
 [[bench]]
 name = "warp"

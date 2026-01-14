@@ -23,6 +23,9 @@ pub enum WarperError {
 
     #[error("Warping produced non-finite value")]
     WarpingError,
+
+    #[error("Source raster cannot contain nan values")]
+    NanError,
 }
 
 #[cfg(feature = "io")]
@@ -31,70 +34,72 @@ pub enum WarperIOError {
     #[error("IO error {0}")]
     IoError(#[from] std::io::Error),
 
-    #[error("Bincode decoding error {0}")]
-    BincodeDecodeError(#[from] bincode::error::DecodeError),
-
-    #[error("Bincode encoding error {0}")]
-    BincodeEncodeError(#[from] bincode::error::EncodeError),
+    #[error("Rkyv error {0}")]
+    BincodeDecodeError(#[from] rkyv::rancor::Error),
 
     #[error("Ndarray error {0}")]
     NdarrayError(#[from] ndarray::ShapeError),
 }
 
-pub(crate) trait XYPair: Debug + Clone + Copy + PartialEq + PartialOrd {}
+pub trait XYPair: Debug + Clone + Copy + PartialEq + PartialOrd {}
 impl XYPair for GenericXYPair {}
 impl XYPair for SourceXYPair {}
 impl XYPair for TargetXYPair {}
 
 impl From<GenericXYPair> for SourceXYPair {
     fn from(v: GenericXYPair) -> Self {
-        SourceXYPair { x: v.x, y: v.y }
+        Self { x: v.x, y: v.y }
     }
 }
 
 impl From<GenericXYPair> for TargetXYPair {
     fn from(v: GenericXYPair) -> Self {
-        TargetXYPair { x: v.x, y: v.y }
+        Self { x: v.x, y: v.y }
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
-pub(crate) struct GenericXYPair {
+pub struct GenericXYPair {
     pub x: f64,
     pub y: f64,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
-pub(crate) struct SourceXYPair {
+pub struct SourceXYPair {
     pub x: f64,
     pub y: f64,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
-pub(crate) struct TargetXYPair {
+pub struct TargetXYPair {
     pub x: f64,
     pub y: f64,
 }
 
 /// Floating indexes in the source raster
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
-pub(crate) struct IXJYPair {
+pub struct IXJYPair {
     pub ix: f64,
     pub jy: f64,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
-pub(crate) struct IJPair {
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd)]
+pub struct IJPair {
     pub i: u32,
     pub j: u32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub(crate) struct MinMaxPair<T> {
+pub struct MinMaxPair<T> {
     pub min: T,
     pub max: T,
 }
 
+/// `RasterBounds` follows the meteorological convention on defining raster pixels
+/// by midpoints of the grid cells.
+/// 
+/// So `min`, `max` here refer to the midpoints of corner
+/// raster cell and `spacing` indicates distance between those midpoints
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub struct RasterBoundsDefinition<P: Projection> {
     min: GenericXYPair,
@@ -105,6 +110,8 @@ pub struct RasterBoundsDefinition<P: Projection> {
 }
 
 impl<P: Projection> RasterBoundsDefinition<P> {
+    /// Similarly to the struct: `x_bounds`, `y_bounds` refer to the midpoints of corner
+    /// raster cell and `dx`, `dy` indicate distance between those midpoints
     pub fn new(
         x_bounds: (f64, f64),
         y_bounds: (f64, f64),
@@ -140,7 +147,7 @@ impl<P: Projection> RasterBoundsDefinition<P> {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
-pub(crate) struct RasterBounds<P: Projection, T: XYPair> {
+pub struct RasterBounds<P: Projection, T: XYPair> {
     pub(crate) min: T,
     pub(crate) max: T,
     pub(crate) spacing: GenericXYPair,
@@ -162,7 +169,7 @@ impl<P: Projection> RasterBounds<P, GenericXYPair> {
 
 impl<P: Projection> From<RasterBoundsDefinition<P>> for RasterBounds<P, GenericXYPair> {
     fn from(def: RasterBoundsDefinition<P>) -> Self {
-        RasterBounds {
+        Self {
             min: def.min,
             max: def.max,
             spacing: def.spacing,
@@ -174,7 +181,7 @@ impl<P: Projection> From<RasterBoundsDefinition<P>> for RasterBounds<P, GenericX
 
 impl<P: Projection> From<&RasterBoundsDefinition<P>> for RasterBounds<P, GenericXYPair> {
     fn from(def: &RasterBoundsDefinition<P>) -> Self {
-        RasterBounds {
+        Self {
             min: def.min,
             max: def.max,
             spacing: def.spacing,
@@ -184,6 +191,8 @@ impl<P: Projection> From<&RasterBoundsDefinition<P>> for RasterBounds<P, Generic
     }
 }
 
+/// As warper requires the source raster to fully wrap the target raster extent (plus some margin),
+/// this function can be used to meet that requirement by adding some padding.
 #[must_use]
 pub fn raster_constant_pad(raster: &Array2<f64>, padding: usize, value: f64) -> Array2<f64> {
     let (ny, nx) = raster.dim();
