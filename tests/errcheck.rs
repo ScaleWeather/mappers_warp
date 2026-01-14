@@ -99,46 +99,53 @@ fn invalid_input_shape() -> Result<()> {
         tgt_proj,
     )?;
 
-    let source_raster = Array2::zeros((10, 10));
-
     let warper = Warper::initialize::<CubicBSpline, _, _>(&source_bounds, &target_bounds)?;
 
-    assert!(matches!(
-        warper.warp_reject_nodata(&source_raster).unwrap_err(),
-        WarperError::InvalidRasterDimensions
-    ));
-    assert!(matches!(
-        warper.warp_ignore_nodata(&source_raster).unwrap_err(),
-        WarperError::InvalidRasterDimensions
-    ));
-    assert!(matches!(
-        warper.warp_discard_nodata(&source_raster).unwrap_err(),
-        WarperError::InvalidRasterDimensions
-    ));
+    // valid shape: (34, 34)
+    let invalid_source_rasters = vec![
+        Array2::zeros((10, 10)),
+        Array2::zeros((34, 10)),
+        Array2::zeros((10, 34)),
+    ];
 
-    #[cfg(feature = "multithreading")]
-    assert!(matches!(
-        warper
-            .warp_reject_nodata_parallel(&source_raster)
-            .unwrap_err(),
-        WarperError::InvalidRasterDimensions
-    ));
+    for source_raster in invalid_source_rasters {
+        assert!(matches!(
+            warper.warp_reject_nodata(&source_raster).unwrap_err(),
+            WarperError::InvalidRasterDimensions
+        ));
+        assert!(matches!(
+            warper.warp_ignore_nodata(&source_raster).unwrap_err(),
+            WarperError::InvalidRasterDimensions
+        ));
+        assert!(matches!(
+            warper.warp_discard_nodata(&source_raster).unwrap_err(),
+            WarperError::InvalidRasterDimensions
+        ));
 
-    #[cfg(feature = "multithreading")]
-    assert!(matches!(
-        warper
-            .warp_ignore_nodata_parallel(&source_raster)
-            .unwrap_err(),
-        WarperError::InvalidRasterDimensions
-    ));
+        #[cfg(feature = "multithreading")]
+        assert!(matches!(
+            warper
+                .warp_reject_nodata_parallel(&source_raster)
+                .unwrap_err(),
+            WarperError::InvalidRasterDimensions
+        ));
 
-    #[cfg(feature = "multithreading")]
-    assert!(matches!(
-        warper
-            .warp_discard_nodata_parallel(&source_raster)
-            .unwrap_err(),
-        WarperError::InvalidRasterDimensions
-    ));
+        #[cfg(feature = "multithreading")]
+        assert!(matches!(
+            warper
+                .warp_ignore_nodata_parallel(&source_raster)
+                .unwrap_err(),
+            WarperError::InvalidRasterDimensions
+        ));
+
+        #[cfg(feature = "multithreading")]
+        assert!(matches!(
+            warper
+                .warp_discard_nodata_parallel(&source_raster)
+                .unwrap_err(),
+            WarperError::InvalidRasterDimensions
+        ));
+    }
 
     Ok(())
 }
