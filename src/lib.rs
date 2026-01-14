@@ -4,7 +4,53 @@
 //!
 //! This tool is effectively a reimplementation of `GdalWarp` code - all credit for the algorithm creation goes to the GDAL developers.
 //!
-//! Unfortunately, there is no documentation for this crate. If you would like to add the docs, feel free to create a Pull Request on Github.
+//! As you can see, this tool is not very comprehensively documented - if you would like to add something useful
+//! to the documentation feel free to open a PR on Github.
+//!
+//! ## Features
+//! - `multithreading` - enables parallel functions for `Warper`. Requires `rayon`, but can provide significant
+//!   performance improvements for some rasters.
+//! - `io` - enables support for saving and loading `Warper` from file. Requires `rkyv`, but can be useful
+//!   when you want to initialize `Warper` ahead-of-time.
+//!
+//! ## Example
+//!
+//! See more usage examples in integration tests.
+//!
+//! ```
+//! use mappers::{
+//!     Ellipsoid, projections::{LambertConformalConic, LongitudeLatitude},
+//! };
+//! use mappers_warp::{CubicBSpline, Warper, RasterBoundsDefinition};
+//! use ndarray::Array2;
+//! # fn main() -> anyhow::Result<()> {
+//! let src_proj = LongitudeLatitude;
+//! let tgt_proj = LambertConformalConic::builder()
+//!     .ref_lonlat(80., 24.)
+//!     .standard_parallels(12.472955, 35.1728044444444)
+//!     .ellipsoid(Ellipsoid::WGS84)
+//!     .initialize_projection()?;
+//!
+//! let source_bounds =
+//!     RasterBoundsDefinition::new((60.00, 68.25), (31.75, 40.0), 0.25, 0.25, src_proj)?;
+//! let target_bounds = RasterBoundsDefinition::new(
+//!     (2_320_000. - 4_000_000., 2_740_000. - 4_000_000.),
+//!     (5_090_000. - 4_000_000., 5_640_000. - 4_000_000.),
+//!     10_000.,
+//!     10_000.,
+//!     tgt_proj,
+//! )?;
+//!
+//! let warper = Warper::initialize::<CubicBSpline, _, _>(
+//!     &source_bounds,
+//!     &target_bounds,
+//! )?;
+//!
+//! let source_raster = Array2::zeros((34, 34));
+//! let target_raster = warper.warp_ignore_nodata(&source_raster)?;
+//! # Ok(())
+//! # }
+//! ```
 
 #![warn(clippy::pedantic)]
 #![warn(clippy::perf)]
@@ -51,6 +97,7 @@ struct ResamplingKernelInternals {
     pub y_weights: [f64; 4],
 }
 
+/// Main struct used for the warp operation
 #[derive(Debug, Clone, PartialEq)]
 pub struct Warper {
     /// uses ndarray convention [y, x]

@@ -95,6 +95,11 @@ pub struct MinMaxPair<T> {
     pub max: T,
 }
 
+/// `RasterBounds` follows the meteorological convention on defining raster pixels
+/// by midpoints of the grid cells.
+/// 
+/// So `min`, `max` here refer to the midpoints of corner
+/// raster cell and `spacing` indicates distance between those midpoints
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub struct RasterBoundsDefinition<P: Projection> {
     min: GenericXYPair,
@@ -105,6 +110,8 @@ pub struct RasterBoundsDefinition<P: Projection> {
 }
 
 impl<P: Projection> RasterBoundsDefinition<P> {
+    /// Similarly to the struct: `x_bounds`, `y_bounds` refer to the midpoints of corner
+    /// raster cell and `dx`, `dy` indicate distance between those midpoints
     pub fn new(
         x_bounds: (f64, f64),
         y_bounds: (f64, f64),
@@ -184,6 +191,8 @@ impl<P: Projection> From<&RasterBoundsDefinition<P>> for RasterBounds<P, Generic
     }
 }
 
+/// As warper requires the source raster to fully wrap the target raster extent (plus some margin),
+/// this function can be used to meet that requirement by adding some padding.
 #[must_use]
 pub fn raster_constant_pad(raster: &Array2<f64>, padding: usize, value: f64) -> Array2<f64> {
     let (ny, nx) = raster.dim();

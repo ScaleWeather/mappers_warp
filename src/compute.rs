@@ -241,6 +241,7 @@ impl Warper {
     }
 }
 
+/// Parallel equivalent of `warp_unchecked`.
 #[cfg(feature = "multithreading")]
 #[cfg_attr(docsrs, doc(cfg(feature = "multithreading")))]
 impl Warper {
@@ -281,12 +282,8 @@ impl Warper {
         })
     }
 
-    // From GdalWarp documentation: for bilinear, cubic, cubicspline and lanczos, for each target pixel, the coordinate of its center
-    // is projected back to source coordinates and a corresponding source pixel is identified. If this source pixel is invalid,
-    // the target pixel is considered as nodata. Given that those resampling kernels have a non-null kernel radius,
-    // this source pixel is just one among other several source pixels, and it might be possible that there are invalid
-    // values in those other contributing source pixels. The weights used to take into account those invalid values
-    // will be set to zero to ignore them.
+    /// This implementation catches warp operation producing NaNs (that is nans resulting from computation error
+    /// not those resulting from nodata), but does not early return.
     #[cfg(feature = "multithreading")]
     #[cfg_attr(docsrs, doc(cfg(feature = "multithreading")))]
     pub fn warp_ignore_nodata_parallel<'a, A: Into<ArrayView2<'a, f64>>>(
@@ -352,6 +349,7 @@ impl Warper {
         Ok(target_raster)
     }
 
+    /// According to benchmarks, this is the fastest checked parallel variant
     #[cfg(feature = "multithreading")]
     #[cfg_attr(docsrs, doc(cfg(feature = "multithreading")))]
     pub fn warp_reject_nodata_parallel<'a, A: Into<ArrayView2<'a, f64>>>(
@@ -391,10 +389,10 @@ impl Warper {
         Ok(target_raster)
     }
 
-    #[cfg(feature = "multithreading")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "multithreading")))]
     /// This implementation catches warp operation producing NaNs (that is nans resulting from computation error
     /// not those resulting from nodata), but does not early return.
+    #[cfg(feature = "multithreading")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "multithreading")))]
     pub fn warp_discard_nodata_parallel<'a, A: Into<ArrayView2<'a, f64>>>(
         &self,
         source_raster: A,

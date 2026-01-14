@@ -5,6 +5,7 @@ pub trait ResamplingFilter {
     const Y_RADIUS: f64;
 }
 
+/// B = 1, C = 0
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct CubicBSpline;
 
