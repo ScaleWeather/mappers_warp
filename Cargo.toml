@@ -9,7 +9,7 @@ repository = "https://github.com/ScaleWeather/mappers_warp"
 readme = "README.md"
 categories = ["mathematics", "science"]
 license = "Apache-2.0"
-exclude = [".github/*"]
+exclude = [".github/*", "tests/data"]
 
 [dependencies]
 mappers = { version = "0.8", default-features = false }
