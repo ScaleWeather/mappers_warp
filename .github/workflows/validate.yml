@@ -36,10 +36,10 @@ jobs:
           cargo clippy --all-features -- -D warnings
       - name: Check tests
         run: |
-          cargo test --no-default-features
-          cargo test --features "multithreading"
-          cargo test --features "io"
-          cargo test --all-features
+          RUST_BACKTRACE=1 cargo test --no-default-features
+          RUST_BACKTRACE=1 cargo test --features "multithreading"
+          RUST_BACKTRACE=1 cargo test --features "io"
+          RUST_BACKTRACE=1 cargo test --all-features
       - name: Benchmark with criterion
         run: |
           cargo criterion --all-features
