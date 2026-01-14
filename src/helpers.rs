@@ -97,7 +97,7 @@ pub struct MinMaxPair<T> {
 
 /// `RasterBounds` follows the meteorological convention on defining raster pixels
 /// by midpoints of the grid cells.
-/// 
+///
 /// So `min`, `max` here refer to the midpoints of corner
 /// raster cell and `spacing` indicates distance between those midpoints
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]

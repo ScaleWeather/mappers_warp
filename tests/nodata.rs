@@ -200,4 +200,3 @@ fn nan_discard() -> Result<()> {
 
     Ok(())
 }
-

@@ -8,7 +8,7 @@
 //! to the documentation feel free to open a PR on Github.
 //!
 //! ## Features
-//! 
+//!
 //! - `multithreading` - enables parallel functions for `Warper`. Requires `rayon`, but can provide significant
 //!   performance improvements for some rasters.
 //! - `io` - enables support for saving and loading `Warper` from file. Requires `rkyv`, but can be useful
