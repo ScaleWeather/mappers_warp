@@ -3,6 +3,20 @@ use ndarray::{Array2, ArrayView2, FoldWhile, Zip, s};
 use crate::{Warper, WarperError};
 
 impl Warper {
+    #[inline]
+    fn validate_source_raster_shape(
+        &self,
+        source_raster: &ArrayView2<f64>,
+    ) -> Result<(), WarperError> {
+        if source_raster.dim().0 != self.source_shape.0
+            || source_raster.dim().1 != self.source_shape.1
+        {
+            return Err(WarperError::InvalidRasterDimensions);
+        }
+
+        Ok(())
+    }
+
     /// This variant does not check anything at all
     pub fn warp_unchecked<'a, A: Into<ArrayView2<'a, f64>>>(
         &self,
@@ -56,11 +70,7 @@ impl Warper {
     ) -> Result<Array2<f64>, WarperError> {
         let source_raster: ArrayView2<f64> = source_raster.into();
 
-        if source_raster.dim().0 != self.source_shape.0
-            || source_raster.dim().1 != self.source_shape.1
-        {
-            return Err(WarperError::InvalidRasterDimensions);
-        }
+        self.validate_source_raster_shape(&source_raster)?;
 
         let mut target_raster = Array2::from_elem(self.internals.raw_dim(), f64::NEG_INFINITY);
 
@@ -121,11 +131,7 @@ impl Warper {
     ) -> Result<Array2<f64>, WarperError> {
         let source_raster: ArrayView2<f64> = source_raster.into();
 
-        if source_raster.dim().0 != self.source_shape.0
-            || source_raster.dim().1 != self.source_shape.1
-        {
-            return Err(WarperError::InvalidRasterDimensions);
-        }
+        self.validate_source_raster_shape(&source_raster)?;
 
         let mut target_raster = Array2::from_elem(self.internals.raw_dim(), f64::NEG_INFINITY);
 
@@ -183,11 +189,7 @@ impl Warper {
     ) -> Result<Array2<f64>, WarperError> {
         let source_raster: ArrayView2<f64> = source_raster.into();
 
-        if source_raster.dim().0 != self.source_shape.0
-            || source_raster.dim().1 != self.source_shape.1
-        {
-            return Err(WarperError::InvalidRasterDimensions);
-        }
+        self.validate_source_raster_shape(&source_raster)?;
 
         let mut target_raster = Array2::from_elem(self.internals.raw_dim(), f64::NEG_INFINITY);
 
@@ -293,11 +295,7 @@ impl Warper {
     ) -> Result<Array2<f64>, WarperError> {
         let source_raster: ArrayView2<f64> = source_raster.into();
 
-        if source_raster.dim().0 != self.source_shape.0
-            || source_raster.dim().1 != self.source_shape.1
-        {
-            return Err(WarperError::InvalidRasterDimensions);
-        }
+        self.validate_source_raster_shape(&source_raster)?;
 
         let mut target_raster = Array2::from_elem(self.internals.raw_dim(), f64::NEG_INFINITY);
 
@@ -362,11 +360,7 @@ impl Warper {
     ) -> Result<Array2<f64>, WarperError> {
         let source_raster: ArrayView2<f64> = source_raster.into();
 
-        if source_raster.dim().0 != self.source_shape.0
-            || source_raster.dim().1 != self.source_shape.1
-        {
-            return Err(WarperError::InvalidRasterDimensions);
-        }
+        self.validate_source_raster_shape(&source_raster)?;
 
         Zip::from(&source_raster).par_fold(
             || Ok(()),
@@ -407,11 +401,7 @@ impl Warper {
     ) -> Result<Array2<f64>, WarperError> {
         let source_raster: ArrayView2<f64> = source_raster.into();
 
-        if source_raster.dim().0 != self.source_shape.0
-            || source_raster.dim().1 != self.source_shape.1
-        {
-            return Err(WarperError::InvalidRasterDimensions);
-        }
+        self.validate_source_raster_shape(&source_raster)?;
 
         let mut target_raster = Array2::from_elem(self.internals.raw_dim(), f64::NEG_INFINITY);
 
