@@ -358,6 +358,8 @@ impl Warper {
     ) -> Result<Array2<f64>, WarperError> {
         let source_raster: ArrayView2<f64> = source_raster.into();
 
+        dbg!(&source_raster);
+
         self.validate_source_raster_shape(&source_raster)?;
 
         Zip::from(&source_raster).par_fold(
