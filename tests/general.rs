@@ -110,9 +110,6 @@ fn mitchell() -> Result<()> {
 
     target_raster.iter().for_each(|&v| assert!(v.is_finite()));
 
-    dbg!(target_raster.max()?);
-    dbg!(source_raster.max()?);
-
     assert!(target_raster.max()? <= source_raster.max()?);
     assert!(target_raster.min()? >= source_raster.min()?);
 

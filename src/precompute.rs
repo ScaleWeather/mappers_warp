@@ -61,7 +61,10 @@ pub fn precompute_ixs_jys_parallel<SP: Projection, TP: Projection>(
     source_bounds: &RasterBounds<SP, SourceXYPair>,
     target_bounds: &RasterBounds<TP, TargetXYPair>,
 ) -> Result<Array2<IXJYPair>, WarperError> {
-    use ndarray::Zip;
+    use ndarray::{
+        Zip,
+        parallel::prelude::{IntoParallelIterator, ParallelIterator},
+    };
 
     let tgt_ul_edge_corner = SourceXYPair {
         x: 0.5f64.mul_add(-target_bounds.spacing.x, target_bounds.min.x),
@@ -98,17 +101,17 @@ pub fn precompute_ixs_jys_parallel<SP: Projection, TP: Projection>(
         )
     });
 
-    Zip::from(&precomputed_coords).par_fold(
-        || Ok(()),
-        |_, v| {
+    // ndarray uses into_par_iter() under the hood so we are not loosing performance
+    // by going to rayon here, possibly even gaining something
+    Zip::from(&precomputed_coords)
+        .into_par_iter()
+        .try_for_each(|(v,)| {
             if !v.ix.is_finite() || !v.jy.is_finite() {
                 Err(WarperError::ConversionError)
             } else {
                 Ok(())
             }
-        },
-        std::result::Result::and,
-    )?;
+        })?;
 
     Ok(precomputed_coords)
 }

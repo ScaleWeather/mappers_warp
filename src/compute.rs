@@ -116,7 +116,7 @@ impl Warper {
                     *v = result;
                     FoldWhile::Continue(Ok(()))
                 } else {
-                    FoldWhile::Done(Err(WarperError::NanError))
+                    FoldWhile::Done(Err(WarperError::WarpingError))
                 }
             })
             .into_inner()?;
@@ -124,7 +124,11 @@ impl Warper {
         Ok(target_raster)
     }
 
-    /// This variant throws an error if there's any NaN in the data or result is not finite
+    /// This variant throws an error if there's any NaN in the (used) input data or result is not finite
+    ///
+    /// Note: the input NaN check checks only values that are actually used in computations,
+    /// so you can pass an input raster with NaNs and get `Ok` result as long as those values
+    /// do not appear in any computation kernel.
     pub fn warp_reject_nodata<'a, A: Into<ArrayView2<'a, f64>>>(
         &self,
         source_raster: A,
@@ -154,7 +158,7 @@ impl Warper {
                         let value = values[[j, i]];
 
                         if value.is_nan() {
-                            return FoldWhile::Done(Err(WarperError::WarpingError));
+                            return FoldWhile::Done(Err(WarperError::NanError));
                         }
                         let x_weight = intr.x_weights[i];
                         inner_weight_accum += x_weight;
@@ -283,13 +287,15 @@ impl Warper {
     }
 
     /// This implementation catches warp operation producing NaNs (that is nans resulting from computation error
-    /// not those resulting from nodata), but does not early return.
+    /// not those resulting from nodata)
     #[cfg(feature = "multithreading")]
     #[cfg_attr(docsrs, doc(cfg(feature = "multithreading")))]
     pub fn warp_ignore_nodata_parallel<'a, A: Into<ArrayView2<'a, f64>>>(
         &self,
         source_raster: A,
     ) -> Result<Array2<f64>, WarperError> {
+        use ndarray::parallel::prelude::{IntoParallelIterator, ParallelIterator};
+
         let source_raster: ArrayView2<f64> = source_raster.into();
 
         self.validate_source_raster_shape(&source_raster)?;
@@ -298,53 +304,50 @@ impl Warper {
 
         Zip::from(&mut target_raster)
             .and(&self.internals)
-            .par_fold(
-                || Ok(()),
-                |_, v, intr| {
-                    let values = source_raster.slice(s![
-                        (intr.anchor_idx.1 - 1)..(intr.anchor_idx.1 + 3),
-                        (intr.anchor_idx.0 - 1)..(intr.anchor_idx.0 + 3)
-                    ]);
+            .into_par_iter()
+            .try_for_each(|(v, intr)| {
+                let values = source_raster.slice(s![
+                    (intr.anchor_idx.1 - 1)..(intr.anchor_idx.1 + 3),
+                    (intr.anchor_idx.0 - 1)..(intr.anchor_idx.0 + 3)
+                ]);
 
-                    let mut weight_accum = 0.0;
-                    let mut result_accum = 0.0;
+                let mut weight_accum = 0.0;
+                let mut result_accum = 0.0;
 
-                    for j in 0..4 {
-                        let mut inner_weight_accum = 0.0;
-                        let mut inner_result_accum = 0.0;
+                for j in 0..4 {
+                    let mut inner_weight_accum = 0.0;
+                    let mut inner_result_accum = 0.0;
 
-                        for i in 0..4 {
-                            let value = values[[j, i]];
+                    for i in 0..4 {
+                        let value = values[[j, i]];
 
-                            if !value.is_nan() {
-                                let x_weight = intr.x_weights[i];
-                                inner_weight_accum += x_weight;
-                                inner_result_accum += x_weight * value;
-                            }
+                        if !value.is_nan() {
+                            let x_weight = intr.x_weights[i];
+                            inner_weight_accum += x_weight;
+                            inner_result_accum += x_weight * value;
                         }
-
-                        let y_weight = intr.y_weights[j];
-
-                        weight_accum += inner_weight_accum * y_weight;
-                        result_accum += inner_result_accum * y_weight;
                     }
 
-                    if (weight_accum).abs() < f64::EPSILON {
-                        *v = f64::NAN;
-                        return Ok(());
-                    }
+                    let y_weight = intr.y_weights[j];
 
-                    let result = result_accum / weight_accum;
+                    weight_accum += inner_weight_accum * y_weight;
+                    result_accum += inner_result_accum * y_weight;
+                }
 
-                    if result.is_finite() {
-                        *v = result;
-                        Ok(())
-                    } else {
-                        Err(WarperError::WarpingError)
-                    }
-                },
-                std::result::Result::and,
-            )?;
+                if (weight_accum).abs() < f64::EPSILON {
+                    *v = f64::NAN;
+                    return Ok(());
+                }
+
+                let result = result_accum / weight_accum;
+
+                if result.is_finite() {
+                    *v = result;
+                    Ok(())
+                } else {
+                    Err(WarperError::WarpingError)
+                }
+            })?;
 
         Ok(target_raster)
     }
@@ -356,47 +359,47 @@ impl Warper {
         &self,
         source_raster: A,
     ) -> Result<Array2<f64>, WarperError> {
+        use ndarray::parallel::prelude::{IntoParallelIterator, ParallelIterator};
+
         let source_raster: ArrayView2<f64> = source_raster.into();
 
         self.validate_source_raster_shape(&source_raster)?;
 
-        Zip::from(&source_raster).par_fold(
-            || Ok(()),
-            |_, v| {
+        Zip::from(&source_raster)
+            .into_par_iter()
+            .try_for_each(|(v,)| {
                 if v.is_nan() {
                     Err(WarperError::NanError)
                 } else {
                     Ok(())
                 }
-            },
-            std::result::Result::and,
-        )?;
+            })?;
 
         let target_raster = self.warp_unchecked_parallel(source_raster);
 
-        Zip::from(&target_raster).par_fold(
-            || Ok(()),
-            |_, v| {
+        Zip::from(&target_raster)
+            .into_par_iter()
+            .try_for_each(|(v,)| {
                 if v.is_finite() {
                     Ok(())
                 } else {
                     Err(WarperError::WarpingError)
                 }
-            },
-            std::result::Result::and,
-        )?;
+            })?;
 
         Ok(target_raster)
     }
 
     /// This implementation catches warp operation producing NaNs (that is nans resulting from computation error
-    /// not those resulting from nodata), but does not early return.
+    /// not those resulting from nodata)
     #[cfg(feature = "multithreading")]
     #[cfg_attr(docsrs, doc(cfg(feature = "multithreading")))]
     pub fn warp_discard_nodata_parallel<'a, A: Into<ArrayView2<'a, f64>>>(
         &self,
         source_raster: A,
     ) -> Result<Array2<f64>, WarperError> {
+        use ndarray::parallel::prelude::{IntoParallelIterator, ParallelIterator};
+
         let source_raster: ArrayView2<f64> = source_raster.into();
 
         self.validate_source_raster_shape(&source_raster)?;
@@ -405,50 +408,47 @@ impl Warper {
 
         Zip::from(&mut target_raster)
             .and(&self.internals)
-            .par_fold(
-                || Ok(()),
-                |_, v, intr| {
-                    let values = source_raster.slice(s![
-                        (intr.anchor_idx.1 - 1)..(intr.anchor_idx.1 + 3),
-                        (intr.anchor_idx.0 - 1)..(intr.anchor_idx.0 + 3)
-                    ]);
+            .into_par_iter()
+            .try_for_each(|(v, intr)| {
+                let values = source_raster.slice(s![
+                    (intr.anchor_idx.1 - 1)..(intr.anchor_idx.1 + 3),
+                    (intr.anchor_idx.0 - 1)..(intr.anchor_idx.0 + 3)
+                ]);
 
-                    let mut weight_accum = 0.0;
-                    let mut result_accum = 0.0;
+                let mut weight_accum = 0.0;
+                let mut result_accum = 0.0;
 
-                    for j in 0..4 {
-                        let mut inner_weight_accum = 0.0;
-                        let mut inner_result_accum = 0.0;
+                for j in 0..4 {
+                    let mut inner_weight_accum = 0.0;
+                    let mut inner_result_accum = 0.0;
 
-                        for i in 0..4 {
-                            let value = values[[j, i]];
+                    for i in 0..4 {
+                        let value = values[[j, i]];
 
-                            if value.is_nan() {
-                                *v = f64::NAN;
-                                return Ok(());
-                            }
-                            let x_weight = intr.x_weights[i];
-                            inner_weight_accum += x_weight;
-                            inner_result_accum += x_weight * value;
+                        if value.is_nan() {
+                            *v = f64::NAN;
+                            return Ok(());
                         }
-
-                        let y_weight = intr.y_weights[j];
-
-                        weight_accum += inner_weight_accum * y_weight;
-                        result_accum += inner_result_accum * y_weight;
+                        let x_weight = intr.x_weights[i];
+                        inner_weight_accum += x_weight;
+                        inner_result_accum += x_weight * value;
                     }
 
-                    let result = result_accum / weight_accum;
+                    let y_weight = intr.y_weights[j];
 
-                    if result.is_finite() {
-                        *v = result;
-                        Ok(())
-                    } else {
-                        Err(WarperError::WarpingError)
-                    }
-                },
-                std::result::Result::and,
-            )?;
+                    weight_accum += inner_weight_accum * y_weight;
+                    result_accum += inner_result_accum * y_weight;
+                }
+
+                let result = result_accum / weight_accum;
+
+                if result.is_finite() {
+                    *v = result;
+                    Ok(())
+                } else {
+                    Err(WarperError::WarpingError)
+                }
+            })?;
 
         Ok(target_raster)
     }
