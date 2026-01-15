@@ -380,10 +380,10 @@ impl Warper {
         Zip::from(&target_raster)
             .into_par_iter()
             .try_for_each(|(v,)| {
-                if !v.is_finite() {
-                    Err(WarperError::WarpingError)
-                } else {
+                if v.is_finite() {
                     Ok(())
+                } else {
+                    Err(WarperError::WarpingError)
                 }
             })?;
 
