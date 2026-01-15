@@ -124,7 +124,11 @@ impl Warper {
         Ok(target_raster)
     }
 
-    /// This variant throws an error if there's any NaN in the data or result is not finite
+    /// This variant throws an error if there's any NaN in the (used) input data or result is not finite
+    ///
+    /// Note: the input NaN check checks only values that are actually used in computations,
+    /// so you can pass an input raster with NaNs and get `Ok` result as long as those values
+    /// do not appear in any computation kernel.
     pub fn warp_reject_nodata<'a, A: Into<ArrayView2<'a, f64>>>(
         &self,
         source_raster: A,
@@ -356,35 +360,33 @@ impl Warper {
         &self,
         source_raster: A,
     ) -> Result<Array2<f64>, WarperError> {
+        use ndarray::parallel::prelude::{IntoParallelIterator, ParallelIterator};
+
         let source_raster: ArrayView2<f64> = source_raster.into();
 
         self.validate_source_raster_shape(&source_raster)?;
 
-        Zip::from(&source_raster).par_fold(
-            || Ok(()),
-            |_, v| {
+        Zip::from(&source_raster)
+            .into_par_iter()
+            .try_for_each(|(v,)| {
                 if v.is_nan() {
                     Err(WarperError::NanError)
                 } else {
                     Ok(())
                 }
-            },
-            std::result::Result::and,
-        )?;
+            })?;
 
         let target_raster = self.warp_unchecked_parallel(source_raster);
 
-        Zip::from(&target_raster).par_fold(
-            || Ok(()),
-            |_, v| {
-                if v.is_finite() {
-                    Ok(())
-                } else {
+        Zip::from(&target_raster)
+            .into_par_iter()
+            .try_for_each(|(v,)| {
+                if !v.is_finite() {
                     Err(WarperError::WarpingError)
+                } else {
+                    Ok(())
                 }
-            },
-            std::result::Result::and,
-        )?;
+            })?;
 
         Ok(target_raster)
     }
