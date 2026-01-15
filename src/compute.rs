@@ -116,7 +116,7 @@ impl Warper {
                     *v = result;
                     FoldWhile::Continue(Ok(()))
                 } else {
-                    FoldWhile::Done(Err(WarperError::NanError))
+                    FoldWhile::Done(Err(WarperError::WarpingError))
                 }
             })
             .into_inner()?;
@@ -154,7 +154,7 @@ impl Warper {
                         let value = values[[j, i]];
 
                         if value.is_nan() {
-                            return FoldWhile::Done(Err(WarperError::WarpingError));
+                            return FoldWhile::Done(Err(WarperError::NanError));
                         }
                         let x_weight = intr.x_weights[i];
                         inner_weight_accum += x_weight;
@@ -357,8 +357,6 @@ impl Warper {
         source_raster: A,
     ) -> Result<Array2<f64>, WarperError> {
         let source_raster: ArrayView2<f64> = source_raster.into();
-
-        dbg!(&source_raster);
 
         self.validate_source_raster_shape(&source_raster)?;
 
