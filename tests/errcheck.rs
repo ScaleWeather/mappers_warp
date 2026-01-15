@@ -1,3 +1,5 @@
+use core::f64;
+
 use anyhow::Result;
 use mappers::{
     Ellipsoid,
@@ -34,7 +36,9 @@ fn non_finite_result() -> Result<()> {
     )?;
 
     let mut source_raster: Array2<f64> = open_nc_data("./tests/data/waves_34.nc")?;
-    source_raster.slice_mut(s![13..15, 21..23]).fill(f64::MAX);
+    source_raster
+        .slice_mut(s![13..15, 21..23])
+        .fill(f64::INFINITY);
 
     assert!(warper.warp_discard_nodata(&source_raster).is_err());
     assert!(warper.warp_reject_nodata(&source_raster).is_err());
