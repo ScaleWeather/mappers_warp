@@ -1,6 +1,6 @@
 [package]
 name = "mappers_warp"
-version = "0.1.0-alpha.2"
+version = "0.1.0-alpha.3"
 edition = "2024"
 publish = true
 authors = ["Jakub Lewandowski <scaleweather@gmail.com>"]
